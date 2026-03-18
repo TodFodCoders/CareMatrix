@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 # Database URL from environment
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "mysql+pymysql://root:password@localhost:3306/carematrix"
+    "mysql+mysqlconnector://root:password@localhost:3306/carematrix"
 )
 
 # Create engine with connection pooling for production

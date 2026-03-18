@@ -42,7 +42,7 @@ A production-ready FastAPI backend for managing hospital patient flows, resource
    cp .env.example .env
    
    # Edit .env with your database credentials
-   # DATABASE_URL=mysql+pymysql://root:password@localhost:3306/carematrix
+   # DATABASE_URL=mysql+mysqlconnector://root:password@localhost:3306/carematrix
    ```
 
 5. **Create database:**
@@ -245,7 +245,7 @@ Critical:  ≥85% occupancy → Auto-generates alert
 ### Environment Variables (.env)
 ```
 # Database
-DATABASE_URL=mysql+pymysql://root:password@localhost:3306/carematrix
+DATABASE_URL=mysql+mysqlconnector://root:password@localhost:3306/carematrix
 
 # Server
 HOST=0.0.0.0
@@ -371,7 +371,7 @@ See "Example API Calls" section above
 - **FastAPI**: Modern web framework
 - **Uvicorn**: ASGI server
 - **SQLAlchemy**: ORM
-- **PyMySQL**: MySQL connector
+- **MySQL Connector**: MySQL connector for Python
 - **Pydantic**: Data validation
 - **python-dotenv**: Environment management
 

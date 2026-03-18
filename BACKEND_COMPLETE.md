@@ -306,7 +306,7 @@ curl "http://localhost:8000/api/v1/analytics/load-balance"
 | Server | Uvicorn | 0.24.0 |
 | ORM | SQLAlchemy | 2.0.23 |
 | Database | MySQL | 8.0 |
-| MySQL Driver | PyMySQL | 1.1.0 |
+| MySQL Driver | MySQL Connector/Python | 8.2.0 |
 | Validation | Pydantic | 2.5.0 |
 | Containerization | Docker | Latest |
 | Language | Python | 3.8+ |

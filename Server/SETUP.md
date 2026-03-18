@@ -71,7 +71,7 @@ mysql -u root -p carematrix < database_schema.sql
 ### Step 6: Configure Environment
 Create `.env` file with your database:
 ```
-DATABASE_URL=mysql+pymysql://root:your_password@localhost:3306/carematrix
+DATABASE_URL=mysql+mysqlconnector://root:your_password@localhost:3306/carematrix
 HOST=0.0.0.0
 PORT=8000
 DEBUG=True
@@ -254,7 +254,7 @@ Server/
 
 ```
 # Database Connection
-DATABASE_URL=mysql+pymysql://username:password@host:port/database
+DATABASE_URL=mysql+mysqlconnector://username:password@host:port/database
 
 # Server Settings
 HOST=0.0.0.0          # Listen on all interfaces
@@ -274,12 +274,12 @@ DATABASE_URL=mysql+pymysql://root:password@localhost:3306/carematrix
 
 **Remote Server:**
 ```
-DATABASE_URL=mysql+pymysql://user:pass@192.168.1.100:3306/carematrix
+DATABASE_URL=mysql+mysqlconnector://user:pass@192.168.1.100:3306/carematrix
 ```
 
 **With Special Characters in Password:**
 ```
-DATABASE_URL=mysql+pymysql://user:p%40ssw0rd@localhost:3306/carematrix
+DATABASE_URL=mysql+mysqlconnector://user:p%40ssw0rd@localhost:3306/carematrix
 ```
 
 ---
@@ -447,7 +447,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 DEBUG=False
 ALLOWED_ORIGINS=["https://yourdomain.com"]
-DATABASE_URL=mysql+pymysql://prod_user:secure_pass@prod_host/carematrix
+DATABASE_URL=mysql+mysqlconnector://prod_user:secure_pass@prod_host/carematrix
 ```
 
 ---

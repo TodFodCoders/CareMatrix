@@ -29,7 +29,7 @@ if not exist .env (
     echo [*] Creating .env from .env.example...
     copy .env.example .env
     echo [!] Please update .env with your database credentials
-    echo [!] DATABASE_URL=mysql+pymysql://root:password@localhost:3306/carematrix
+    echo [!] DATABASE_URL=mysql+mysqlconnector://root:password@localhost:3306/carematrix
     echo.
     pause
 )

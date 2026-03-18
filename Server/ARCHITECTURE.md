@@ -246,7 +246,7 @@ Logic:
 ### Database
 - **MySQL** 8.0 - Relational database
 - **SQLAlchemy** 2.0.23 - ORM
-- **PyMySQL** 1.1.0 - MySQL connector
+- **MySQL Connector** 8.2.0 - MySQL connector for Python
 
 ### Data Validation
 - **Pydantic** 2.5.0 - Request/response validation
