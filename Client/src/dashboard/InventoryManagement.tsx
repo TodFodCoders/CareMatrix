@@ -1,5 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { createResourceRequest } from "../api";
+import { useHospital } from "../HospitalContext";
 
 type Item = {
   id: string;
@@ -8,6 +10,8 @@ type Item = {
   price: number;
   icon: string;
 };
+
+type BillItem = Item & { predicted: number; deficit: number; cost: number };
 
 const inventory: Item[] = [
   { id: "i1", name: "Oxygen Cylinders", quantity: 3, price: 5000, icon: "🫧" },
@@ -22,11 +26,14 @@ const inventory: Item[] = [
 
 export default function InventoryManagement() {
   const navigate = useNavigate();
+  const { hospitalId } = useHospital();
 
   const [predictions, setPredictions] = useState<Record<string, number>>({});
   const [status, setStatus] = useState<Record<string, string>>({});
-  const [bill, setBill] = useState<any[]>([]);
+  const [bill, setBill] = useState<BillItem[]>([]);
   const [total, setTotal] = useState(0);
+  const [ordering, setOrdering] = useState(false);
+  const [orderDone, setOrderDone] = useState(false);
 
   const formatINR = (num: number) =>
     new Intl.NumberFormat("en-IN", {
@@ -36,32 +43,23 @@ export default function InventoryManagement() {
     }).format(num);
 
   const generatePrediction = () => {
-    let predMap: Record<string, number> = {};
-    let statusMap: Record<string, string> = {};
-    let newBill: any[] = [];
+    const predMap: Record<string, number> = {};
+    const statusMap: Record<string, string> = {};
+    const newBill: BillItem[] = [];
     let sum = 0;
 
     inventory.forEach((item) => {
       const predicted = Math.floor(Math.random() * 150 + 20);
-
       predMap[item.id] = predicted;
 
       if (item.quantity >= predicted) {
         statusMap[item.id] = "SATISFIED";
       } else {
         statusMap[item.id] = "REQUIRED";
-
         const deficit = predicted - item.quantity;
         const cost = deficit * item.price;
-
         sum += cost;
-
-        newBill.push({
-          ...item,
-          predicted,
-          deficit,
-          cost,
-        });
+        newBill.push({ ...item, predicted, deficit, cost });
       }
     });
 
@@ -69,6 +67,21 @@ export default function InventoryManagement() {
     setStatus(statusMap);
     setBill(newBill);
     setTotal(sum);
+    setOrderDone(false);
+  };
+
+  const handleOrder = async () => {
+    if (!hospitalId || bill.length === 0) return;
+    setOrdering(true);
+
+    await Promise.all(
+      bill.map((b) =>
+        createResourceRequest(hospitalId, b.name, b.deficit).catch(() => {}),
+      ),
+    );
+
+    setOrdering(false);
+    setOrderDone(true);
   };
 
   return (
@@ -92,7 +105,6 @@ export default function InventoryManagement() {
       </header>
 
       <section className="inventory-layout">
-        {/* TABLE */}
         <div className="inventory-table">
           <div className="table-header">
             <span>Item</span>
@@ -109,23 +121,16 @@ export default function InventoryManagement() {
             return (
               <div
                 key={item.id}
-                className={`table-row ${
-                  isRequired ? "row-required" : isOk ? "row-ok" : ""
-                }`}
+                className={`table-row ${isRequired ? "row-required" : isOk ? "row-ok" : ""}`}
               >
                 <span className="item-name">
                   <span className="icon">{item.icon}</span>
                   {item.name}
                 </span>
-
                 <span className="number">{item.quantity}</span>
-
                 <span className="number">{predictions[item.id] ?? "-"}</span>
-
                 <span
-                  className={`status ${
-                    isRequired ? "status-bad" : isOk ? "status-ok" : ""
-                  }`}
+                  className={`status ${isRequired ? "status-bad" : isOk ? "status-ok" : ""}`}
                 >
                   {state ?? "-"}
                 </span>
@@ -134,7 +139,6 @@ export default function InventoryManagement() {
           })}
         </div>
 
-        {/* SIDE PANEL */}
         <div className="inventory-side">
           <button className="action-card" onClick={generatePrediction}>
             Predict Resources
@@ -148,11 +152,9 @@ export default function InventoryManagement() {
                 {bill.map((b) => (
                   <div key={b.id} className="bill-row">
                     <span>{b.name}</span>
-
                     <span className="number bill-calc">
                       {b.deficit} × {formatINR(b.price)}
                     </span>
-
                     <span className="number bill-amount">
                       {formatINR(b.cost)}
                     </span>
@@ -164,7 +166,17 @@ export default function InventoryManagement() {
                   <span className="number">{formatINR(total)}</span>
                 </div>
 
-                <button className="order-button">Order Now</button>
+                {orderDone ? (
+                  <p className="order-success">✓ Resource requests sent</p>
+                ) : (
+                  <button
+                    className="order-button"
+                    onClick={handleOrder}
+                    disabled={ordering || !hospitalId}
+                  >
+                    {ordering ? "Sending…" : "Order Now"}
+                  </button>
+                )}
               </>
             ) : (
               <p className="placeholder">No prediction yet</p>

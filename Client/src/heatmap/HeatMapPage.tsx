@@ -1,7 +1,8 @@
 import { MapContainer, TileLayer, CircleMarker } from "react-leaflet";
 import "./heatmap.css";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getHeatmap } from "../api";
 
 type Hospital = {
   id: string;
@@ -9,63 +10,44 @@ type Hospital = {
   lat: number;
   lng: number;
   demand: number;
-  cases: number;
-  patients: number;
+  total: number;
+  available: number;
 };
 
-const hospitals: Hospital[] = [
-  {
-    id: "h1",
-    name: "Central City Hospital",
-    lat: 28.7041,
-    lng: 77.1025,
-    demand: 80,
-    cases: 120,
-    patients: 45,
-  },
-  {
-    id: "h2",
-    name: "Green Valley Clinic",
-    lat: 28.5355,
-    lng: 77.391,
-    demand: 45,
-    cases: 60,
-    patients: 18,
-  },
-  {
-    id: "h3",
-    name: "Lakeside Medical",
-    lat: 28.4595,
-    lng: 77.0266,
-    demand: 20,
-    cases: 15,
-    patients: 4,
-  },
-  {
-    id: "h4",
-    name: "Northside General",
-    lat: 28.4089,
-    lng: 77.3178,
-    demand: 65,
-    cases: 90,
-    patients: 30,
-  },
-];
-
-const palette = ["#8f1d1d", "#c4d8df", "#111111", "#dde4e8"];
-
-function getColor(id: string) {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = id.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return palette[Math.abs(hash) % palette.length];
+function demandColor(demand: number) {
+  if (demand >= 75) return "#8f1d1d";
+  if (demand >= 45) return "#c4d8df";
+  return "#2e7d32";
 }
 
 export default function HeatMapPage() {
   const mapRef = useRef(null);
   const navigate = useNavigate();
   const [selected, setSelected] = useState<Hospital | null>(null);
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      const data = await getHeatmap().catch(() => []);
+      setHospitals(
+        data.map((h) => ({
+          id: h.id,
+          name: h.name,
+          lat: h.lat,
+          lng: h.lng,
+          demand: h.demand,
+          total: h.total,
+          available: h.available,
+        })),
+      );
+      setLoading(false);
+    };
+
+    load();
+    const iv = setInterval(load, 10000);
+    return () => clearInterval(iv);
+  }, []);
 
   return (
     <div className="heatmap-shell">
@@ -77,66 +59,85 @@ export default function HeatMapPage() {
       </header>
 
       <div className="heatmap-body">
-        {/* MAP */}
         <div className="map-container">
-          <MapContainer
-            ref={mapRef}
-            center={[28.6, 77.1]}
-            zoom={10}
-            className="heatmap-map"
-          >
-            <TileLayer
-              attribution="&copy; OpenStreetMap contributors"
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-
-            {hospitals.map((h) => {
-              const color = getColor(h.id);
-
-              return (
+          {loading ? (
+            <div className="heatmap-loading">Loading hospital data…</div>
+          ) : (
+            <MapContainer
+              ref={mapRef}
+              center={[28.6, 77.1]}
+              zoom={10}
+              className="heatmap-map"
+            >
+              <TileLayer
+                attribution="&copy; OpenStreetMap contributors"
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              {hospitals.map((h) => (
                 <CircleMarker
                   key={h.id}
                   center={[h.lat, h.lng]}
                   radius={8 + Math.round(h.demand / 15)}
                   pathOptions={{
-                    color: selected?.id === h.id ? "#8f1d1d" : "#111111",
-                    fillColor: color,
+                    color: selected?.id === h.id ? "#111111" : "#111111",
+                    fillColor: demandColor(h.demand),
                     fillOpacity: 1,
-                    weight: selected?.id === h.id ? 3 : 2,
+                    weight: selected?.id === h.id ? 4 : 2,
                   }}
-                  eventHandlers={{
-                    click: () => setSelected(h),
-                  }}
+                  eventHandlers={{ click: () => setSelected(h) }}
                 />
-              );
-            })}
-          </MapContainer>
+              ))}
+            </MapContainer>
+          )}
         </div>
 
-        {/* INFO PANEL */}
         <div className="info-panel">
-          {selected ? (
+          {hospitals.length === 0 && !loading ? (
+            <div className="info-placeholder">
+              <p>No hospitals registered yet</p>
+            </div>
+          ) : selected ? (
             <div className="info-card">
               <h3>{selected.name}</h3>
-
               <p>
                 <strong>Demand:</strong> {selected.demand}%
               </p>
               <p>
-                <strong>Total Capacity:</strong> {selected.cases}
+                <strong>Total Capacity:</strong> {selected.total}
               </p>
               <p>
-                <strong>Occupied:</strong> {selected.patients}
+                <strong>Available:</strong> {selected.available}
               </p>
-
               <p className="vacant">
-                <strong>Vacant Beds:</strong>{" "}
-                {selected.cases - selected.patients}
+                <strong>Occupied:</strong> {selected.total - selected.available}
               </p>
+              <div
+                className="demand-bar"
+                style={
+                  { "--demand": `${selected.demand}%` } as React.CSSProperties
+                }
+              />
             </div>
           ) : (
             <div className="info-placeholder">
               <p>Select a hospital to view details</p>
+              <div className="legend">
+                <span
+                  className="legend-dot"
+                  style={{ background: "#2e7d32" }}
+                />{" "}
+                Low
+                <span
+                  className="legend-dot"
+                  style={{ background: "#c4d8df" }}
+                />{" "}
+                Medium
+                <span
+                  className="legend-dot"
+                  style={{ background: "#8f1d1d" }}
+                />{" "}
+                High
+              </div>
             </div>
           )}
         </div>

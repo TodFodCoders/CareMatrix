@@ -1,27 +1,39 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./dashboard.css";
+import {
+  createPatientRequest,
+  getOpenRequests,
+  getPatientResponses,
+  respondToPatient,
+  selectHospital,
+} from "../api";
+import { useHospital } from "../HospitalContext";
 
 type TransferRequest = {
   id: string;
-  hospital: string;
-  patient: string;
-  condition: string;
-  status: "PENDING" | "ADMITTED" | "TRANSFERRED" | "DECLINED";
+  department: string;
+  priority: string;
+  status: "PENDING" | "ADMITTED" | "DECLINED";
 };
 
 type PatientStatus = {
-  id: string;
+  patientId: string;
   name: string;
-  match: string;
+  matches: { hospital_id: string; name: string }[];
+  selected: string | null;
 };
 
 function Dashboard() {
   const [ribbonCycle, setRibbonCycle] = useState(0);
   const navigate = useNavigate();
+  const { hospitalId } = useHospital();
 
   const [requests, setRequests] = useState<TransferRequest[]>([]);
   const [patients, setPatients] = useState<PatientStatus[]>([]);
+  const seenIds = useRef<Set<string>>(new Set());
+  const patientsRef = useRef<PatientStatus[]>([]);
+  patientsRef.current = patients;
 
   const [formData, setFormData] = useState({
     name: "",
@@ -33,44 +45,64 @@ function Dashboard() {
     department: "Emergency",
   });
 
-  /* 🔥 STREAM: 4 REQUESTS PER SECOND */
+  const triggerRibbon = () => setRibbonCycle((v) => v + 1);
+
   useEffect(() => {
     setRibbonCycle(1);
 
-    const interval = setInterval(() => {
-      const newRequests: TransferRequest[] = Array.from({ length: 4 }).map(
-        () => ({
-          id: Math.random().toString(36).slice(2, 7),
-          hospital: "City Hospital",
-          patient: "Patient " + Math.floor(Math.random() * 100),
-          condition: "Critical Trauma",
-          status: "PENDING",
-        }),
+    const poll = async () => {
+      const open = await getOpenRequests().catch(() => []);
+      const fresh = open.filter((r) => !seenIds.current.has(r.id));
+      if (fresh.length === 0) return;
+
+      fresh.forEach((r) => seenIds.current.add(r.id));
+      setRequests((prev) =>
+        [
+          ...fresh.map((r) => ({
+            id: r.id,
+            department: r.department,
+            priority: r.priority,
+            status: "PENDING" as const,
+          })),
+          ...prev,
+        ].slice(0, 50),
       );
+    };
 
-      setRequests((r) => [...newRequests, ...r]);
-    }, 1000);
-
-    return () => clearInterval(interval);
+    poll();
+    const iv = setInterval(poll, 3000);
+    return () => clearInterval(iv);
   }, []);
 
-  const triggerRibbon = () => {
-    setRibbonCycle((v) => v + 1);
-  };
+  useEffect(() => {
+    const poll = async () => {
+      const current = patientsRef.current;
+      for (const p of current) {
+        if (p.selected) continue;
+        const responses = await getPatientResponses(p.patientId).catch(
+          () => [],
+        );
+        if (responses.length === 0) continue;
+        setPatients((prev) =>
+          prev.map((x) =>
+            x.patientId === p.patientId ? { ...x, matches: responses } : x,
+          ),
+        );
+      }
+    };
+
+    const iv = setInterval(poll, 4000);
+    return () => clearInterval(iv);
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  /* ✅ FIXED FORM */
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!formData.name || !formData.age || !formData.contact) {
       alert("Please fill all required fields");
       return;
@@ -78,19 +110,27 @@ function Dashboard() {
 
     triggerRibbon();
 
-    // const matchOptions = [
-    //   "City Hospital (3 beds)",
-    //   "Green Valley (1 bed)",
-    //   "Northside (5 beds)",
-    // ];
+    const res = await createPatientRequest(
+      formData.department,
+      formData.priority,
+      28.6,
+      77.1,
+    ).catch(() => null);
 
-    const newPatient: PatientStatus = {
-      id: "P-" + Math.floor(Math.random() * 9000 + 1000),
-      name: formData.name,
-      match: "Not yet",
-    };
+    if (!res) {
+      alert("Backend unreachable — patient not registered");
+      return;
+    }
 
-    setPatients((a) => [newPatient, ...a]);
+    setPatients((prev) => [
+      {
+        patientId: res.patient_id,
+        name: formData.name,
+        matches: [],
+        selected: null,
+      },
+      ...prev,
+    ]);
 
     setFormData({
       name: "",
@@ -103,18 +143,33 @@ function Dashboard() {
     });
   };
 
-  /* ✅ DECISION SYSTEM */
-  const handleDecision = (
+  const handleDecision = async (
     id: string,
-    decision: "ADMITTED" | "TRANSFERRED" | "DECLINED",
+    decision: "ADMITTED" | "DECLINED",
   ) => {
+    if (!hospitalId) return;
+    const apiStatus = decision === "ADMITTED" ? "accepted" : "rejected";
+    await respondToPatient(id, hospitalId, apiStatus).catch(() => {});
+
     setRequests((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status: decision } : r)),
     );
 
+    // keep id in seenIds so it never re-appears after polling — do NOT delete it
     setTimeout(() => {
       setRequests((prev) => prev.filter((r) => r.id !== id));
     }, 1500);
+  };
+
+  const handleSelectHospital = async (patientId: string, hId: string) => {
+    const res = await selectHospital(patientId, hId).catch(() => null);
+    if (res?.status === "assigned") {
+      setPatients((prev) =>
+        prev.map((p) =>
+          p.patientId === patientId ? { ...p, selected: hId } : p,
+        ),
+      );
+    }
   };
 
   return (
@@ -138,11 +193,9 @@ function Dashboard() {
       </header>
 
       <section className="dashboard-grid">
-        {/* LEFT PANEL */}
         <section className="welcome-panel">
           <div className="hero-cross" />
           <div className="panel-logo" />
-
           <p className="dashboard-label">Emergency Access</p>
           <h2>Welcome</h2>
           <p className="welcome-copy">Rapid intake controls.</p>
@@ -165,9 +218,7 @@ function Dashboard() {
           </div>
         </section>
 
-        {/* RIGHT PANEL */}
         <section className="workspace-panel split">
-          {/* FORM */}
           <section className="form-panel">
             <div className="section-heading">
               <div className="panel-logo" />
@@ -213,7 +264,6 @@ function Dashboard() {
                   <option>A+</option>
                   <option>B+</option>
                 </select>
-
                 <select
                   name="priority"
                   value={formData.priority}
@@ -250,34 +300,28 @@ function Dashboard() {
             </form>
           </section>
 
-          {/* NOTIFICATIONS */}
           <section className="notification-panel">
             <div className="notif-block">
               <h3>Incoming Transfers</h3>
-
               <div className="notif-scroll">
+                {requests.length === 0 && (
+                  <p className="notif-empty">No open requests</p>
+                )}
                 {requests.map((r) => (
                   <div key={r.id} className="notif-item">
                     <div>
-                      <strong>{r.patient}</strong>
-                      <p>{r.hospital}</p>
-                      <p>{r.condition}</p>
+                      <strong>{r.department}</strong>
+                      <p className="notif-sub">Priority: {r.priority}</p>
                       <p className={`status-${r.status.toLowerCase()}`}>
                         {r.status}
                       </p>
                     </div>
-
                     {r.status === "PENDING" && (
                       <div className="notif-actions">
                         <button
                           onClick={() => handleDecision(r.id, "ADMITTED")}
                         >
                           ✓
-                        </button>
-                        <button
-                          onClick={() => handleDecision(r.id, "TRANSFERRED")}
-                        >
-                          ⇄
                         </button>
                         <button
                           onClick={() => handleDecision(r.id, "DECLINED")}
@@ -293,13 +337,35 @@ function Dashboard() {
 
             <div className="notif-block">
               <h3>Patient Status</h3>
-
               <div className="notif-scroll">
+                {patients.length === 0 && (
+                  <p className="notif-empty">No patients registered yet</p>
+                )}
                 {patients.map((p) => (
-                  <div key={p.id} className="notif-item">
-                    <span>{p.id}</span>
-                    <span>{p.name}</span>
-                    <span className="status-ok">{p.match}</span>
+                  <div key={p.patientId} className="notif-item">
+                    <div>
+                      <strong>{p.name}</strong>
+                      <p className="notif-sub">{p.patientId.slice(0, 8)}…</p>
+                    </div>
+                    {p.selected ? (
+                      <span className="status-admitted">ASSIGNED</span>
+                    ) : p.matches.length === 0 ? (
+                      <span className="status-pending">Awaiting…</span>
+                    ) : (
+                      <div className="match-list">
+                        {p.matches.map((m) => (
+                          <button
+                            key={m.hospital_id}
+                            className="match-btn"
+                            onClick={() =>
+                              handleSelectHospital(p.patientId, m.hospital_id)
+                            }
+                          >
+                            ✓ {m.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

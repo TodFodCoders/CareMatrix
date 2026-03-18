@@ -4,11 +4,14 @@ import { BrowserRouter } from "react-router-dom";
 import "./index.css";
 import "leaflet/dist/leaflet.css";
 import App from "./App.tsx";
+import { HospitalProvider } from "./HospitalContext.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
-      <App />
+      <HospitalProvider>
+        <App />
+      </HospitalProvider>
     </BrowserRouter>
   </StrictMode>,
 );
