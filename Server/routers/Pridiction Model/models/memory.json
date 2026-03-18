@@ -1,0 +1,49 @@
+{
+  "sessions": 1,
+  "total_rows": 2192,
+  "date_range": {
+    "first": "2023-01-01",
+    "last": "2024-07-01"
+  },
+  "specialties": [
+    "Dental",
+    "ENT",
+    "General Medicine",
+    "Orthopaedic"
+  ],
+  "csv_hashes": [
+    "e08b13ac1d59"
+  ],
+  "cumulative_stats": {
+    "global_mean": 35.31341240875913,
+    "global_std": 9.946173842743686,
+    "best_model": "DT",
+    "best_mae": 0.8
+  },
+  "training_history": [
+    {
+      "session": 1,
+      "date": "2026-03-19T04:27:09.477038",
+      "rows_added": 2192,
+      "total_rows": 2192,
+      "best_model": "DT",
+      "best_mae": 0.8,
+      "accuracy": 97.7,
+      "csv": "data\\demo.csv",
+      "gpu": "NVIDIA GeForce RTX 3050 6GB Laptop GPU, 6144 MiB"
+    }
+  ],
+  "capacity_defaults": {
+    "doctors": 3.8,
+    "counters": 3.0,
+    "totalBeds": 100,
+    "bedsOccupied": 72,
+    "opdHrs": 6,
+    "edBeds": 20,
+    "edOccupied": 12,
+    "admitRate": 8.0,
+    "edRate": 3.0,
+    "walkInPct": 36.0,
+    "phonePct": 34.0
+  }
+}
