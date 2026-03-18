@@ -5,6 +5,10 @@ import uuid
 import time
 from pydantic import BaseModel
 
+# =========================
+# MODELS
+# =========================
+
 class HospitalRegister(BaseModel):
     name: str
     lat: float
@@ -19,21 +23,44 @@ class CapacityUpdate(BaseModel):
 
 
 class PatientRequest(BaseModel):
-    hospital_id: str
     department: str
     priority: str
     lat: float
     lng: float
 
 
-class AcceptRequest(BaseModel):
+class HospitalResponse(BaseModel):
+    patient_id: str
+    hospital_id: str
+    status: str  # accepted / rejected
+
+
+class PatientSelect(BaseModel):
     patient_id: str
     hospital_id: str
 
+class ResourceRequest(BaseModel):
+    hospital_id: str
+    resource_type: str
+    quantity: int
+
+
+class ResourceResponse(BaseModel):
+    request_id: str
+    hospital_id: str
+    status: str
+
+
+class ResourceSelect(BaseModel):
+    request_id: str
+    hospital_id: str
+
+# =========================
+# APP INIT
+# =========================
 
 app = FastAPI()
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -42,7 +69,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# DB connection
 conn = sqlite3.connect("carematrix.db", check_same_thread=False)
 cursor = conn.cursor()
 
@@ -50,7 +76,7 @@ cursor = conn.cursor()
 # DB INIT
 # =========================
 
-cursor.executescript("""
+cursor.executescript("""                     
 CREATE TABLE IF NOT EXISTS hospitals (
   id TEXT PRIMARY KEY,
   name TEXT,
@@ -69,12 +95,20 @@ CREATE TABLE IF NOT EXISTS capacity (
 
 CREATE TABLE IF NOT EXISTS patients (
   id TEXT PRIMARY KEY,
-  hospital_id TEXT,
   department TEXT,
   priority TEXT,
   lat REAL,
   lng REAL,
-  assigned INTEGER DEFAULT 0
+  assigned INTEGER DEFAULT 0,
+  status TEXT DEFAULT 'open'
+);
+
+CREATE TABLE IF NOT EXISTS responses (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  patient_id TEXT,
+  hospital_id TEXT,
+  status TEXT,
+  timestamp INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS assignments (
@@ -82,12 +116,115 @@ CREATE TABLE IF NOT EXISTS assignments (
   hospital_id TEXT,
   timestamp INTEGER
 );
+                     
+CREATE TABLE IF NOT EXISTS resource_requests (
+  id TEXT PRIMARY KEY,
+  requester_hospital_id TEXT,
+  resource_type TEXT,
+  quantity INTEGER,
+  status TEXT DEFAULT 'open',
+  timestamp INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS resource_responses (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  request_id TEXT,
+  provider_hospital_id TEXT,
+  status TEXT,
+  timestamp INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS resources (
+  hospital_id TEXT,
+  resource_type TEXT,
+  available INTEGER,
+  PRIMARY KEY (hospital_id, resource_type)
+);
 """)
 conn.commit()
 
 # =========================
 # HOSPITAL ROUTES
 # =========================
+
+@app.post("/api/resource/request")
+def create_resource_request(data: ResourceRequest):
+    request_id = str(uuid.uuid4())
+
+    cursor.execute("""
+        INSERT INTO resource_requests
+        VALUES (?, ?, ?, ?, 'open', ?)
+    """, (
+        request_id,
+        data.hospital_id,
+        data.resource_type,
+        data.quantity,
+        int(time.time())
+    ))
+    conn.commit()
+
+    return {"request_id": request_id}
+
+@app.get("/api/resource/open")
+def get_open_resource_requests():
+    cursor.execute("""
+        SELECT * FROM resource_requests
+        WHERE status='open'
+    """)
+    return cursor.fetchall()
+
+@app.post("/api/resource/respond")
+def respond_resource(data: ResourceResponse):
+
+    cursor.execute("""
+        INSERT INTO resource_responses
+        (request_id, provider_hospital_id, status, timestamp)
+        VALUES (?, ?, ?, ?)
+    """, (
+        data.request_id,
+        data.hospital_id,
+        data.status,
+        int(time.time())
+    ))
+
+    conn.commit()
+    return {"status": "recorded"}
+
+@app.get("/api/resource/responses")
+def get_resource_responses(request_id: str):
+
+    cursor.execute("""
+        SELECT r.provider_hospital_id, h.name, h.lat, h.lng
+        FROM resource_responses r
+        JOIN hospitals h ON r.provider_hospital_id = h.id
+        WHERE r.request_id=? AND r.status='accepted'
+    """, (request_id,))
+
+    return cursor.fetchall()
+
+
+@app.post("/api/resource/select")
+def select_resource_provider(data: ResourceSelect):
+
+    # validate response
+    cursor.execute("""
+        SELECT * FROM resource_responses
+        WHERE request_id=? AND provider_hospital_id=? AND status='accepted'
+    """, (data.request_id, data.hospital_id))
+
+    if not cursor.fetchone():
+        return {"status": "invalid_selection"}
+
+    # update request
+    cursor.execute("""
+        UPDATE resource_requests
+        SET status='fulfilled'
+        WHERE id=?
+    """, (data.request_id,))
+
+    conn.commit()
+
+    return {"status": "fulfilled"}
 
 @app.post("/api/hospital/register")
 def register_hospital(data: HospitalRegister):
@@ -100,6 +237,7 @@ def register_hospital(data: HospitalRegister):
     conn.commit()
 
     return {"id": hospital_id}
+
 
 @app.post("/api/hospital/capacity")
 def update_capacity(data: CapacityUpdate):
@@ -121,7 +259,7 @@ def update_capacity(data: CapacityUpdate):
 
 
 # =========================
-# PATIENT ROUTES
+# PATIENT REQUEST (BROADCAST)
 # =========================
 
 @app.post("/api/request")
@@ -129,10 +267,10 @@ def create_request(data: PatientRequest):
     patient_id = str(uuid.uuid4())
 
     cursor.execute("""
-        INSERT INTO patients VALUES (?, ?, ?, ?, ?, ?, 0)
+        INSERT INTO patients (id, department, priority, lat, lng, assigned, status)
+        VALUES (?, ?, ?, ?, ?, 0, 'open')
     """, (
         patient_id,
-        data.hospital_id,
         data.department,
         data.priority,
         data.lat,
@@ -144,47 +282,102 @@ def create_request(data: PatientRequest):
 
 
 # =========================
-# POLLING
+# HOSPITAL FETCH OPEN REQUESTS
 # =========================
 
-@app.get("/api/hospital/poll")
-def poll_patients(hospital_id: str):
+@app.get("/api/hospital/open-requests")
+def open_requests(department: str = None):
+    if department:
+        cursor.execute("""
+            SELECT * FROM patients
+            WHERE status='open' AND department=?
+        """, (department,))
+    else:
+        cursor.execute("""
+            SELECT * FROM patients
+            WHERE status='open'
+        """)
+
+    return cursor.fetchall()
+
+
+# =========================
+# HOSPITAL RESPONDS
+# =========================
+
+@app.post("/api/hospital/respond")
+def hospital_respond(data: HospitalResponse):
+
     cursor.execute("""
-        SELECT * FROM patients
-        WHERE assigned=0 AND hospital_id=?
-    """, (hospital_id,))
+        INSERT INTO responses (patient_id, hospital_id, status, timestamp)
+        VALUES (?, ?, ?, ?)
+    """, (
+        data.patient_id,
+        data.hospital_id,
+        data.status,
+        int(time.time())
+    ))
+    conn.commit()
 
-    rows = cursor.fetchall()
-    return rows
+    return {"status": "recorded"}
 
 
 # =========================
-# ACCEPT
+# PATIENT GET RESPONSES
 # =========================
 
-@app.post("/api/accept")
-def accept_patient(data: AcceptRequest):
+@app.get("/api/patient/responses")
+def get_responses(patient_id: str):
 
+    cursor.execute("""
+        SELECT r.hospital_id, h.name, h.lat, h.lng
+        FROM responses r
+        JOIN hospitals h ON r.hospital_id = h.id
+        WHERE r.patient_id=? AND r.status='accepted'
+    """, (patient_id,))
+
+    return cursor.fetchall()
+
+
+# =========================
+# PATIENT SELECT FINAL HOSPITAL
+# =========================
+
+@app.post("/api/patient/select")
+def select_hospital(data: PatientSelect):
+
+    # check if hospital responded
+    cursor.execute("""
+        SELECT * FROM responses
+        WHERE patient_id=? AND hospital_id=? AND status='accepted'
+    """, (data.patient_id, data.hospital_id))
+
+    if not cursor.fetchone():
+        return {"status": "invalid_selection"}
+
+    # get patient
     cursor.execute("SELECT * FROM patients WHERE id=?", (data.patient_id,))
     p = cursor.fetchone()
 
-    if not p or p[6] == 1:
-        return {"status": "invalid"}
+    if not p or p[5] == 1:
+        return {"status": "already_assigned"}
 
-    if p[1] != data.hospital_id:
-        return {"status": "not_authorized"}
-
+    # check capacity
     cursor.execute("""
         SELECT * FROM capacity
         WHERE hospital_id=? AND department=?
-    """, (data.hospital_id, p[2]))
+    """, (data.hospital_id, p[1]))
 
     cap = cursor.fetchone()
 
     if not cap or cap[3] <= 0:
         return {"status": "no_capacity"}
 
-    cursor.execute("UPDATE patients SET assigned=1 WHERE id=?", (data.patient_id,))
+    # assign
+    cursor.execute("""
+        UPDATE patients SET assigned=1, status='assigned'
+        WHERE id=?
+    """, (data.patient_id,))
 
     cursor.execute("""
         INSERT INTO assignments VALUES (?, ?, ?)
@@ -195,13 +388,14 @@ def accept_patient(data: AcceptRequest):
     ))
 
     cursor.execute("""
-        UPDATE capacity SET available=available-1
+        UPDATE capacity
+        SET available=available-1
         WHERE hospital_id=? AND department=?
-    """, (data.hospital_id, p[2]))
+    """, (data.hospital_id, p[1]))
 
     conn.commit()
 
-    return {"status": "accepted"}
+    return {"status": "assigned"}
 
 
 # =========================
@@ -249,7 +443,6 @@ def heatmap():
     for r in rows:
         total = r[4] if r[4] else 0
         available = r[5] if r[5] else 0
-
         demand = round((1 - available / total) * 100) if total else 0
 
         result.append({
@@ -274,12 +467,6 @@ def debug_state():
     return {
         "hospitals": cursor.execute("SELECT * FROM hospitals").fetchall(),
         "patients": cursor.execute("SELECT * FROM patients").fetchall(),
+        "responses": cursor.execute("SELECT * FROM responses").fetchall(),
         "assignments": cursor.execute("SELECT * FROM assignments").fetchall()
     }
-
-
-# =========================
-# START
-# =========================
-
-# Run using: uvicorn main:app --reload
