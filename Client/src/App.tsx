@@ -4,6 +4,7 @@ import Login from "./authentication/Login";
 import HeatMapPage from "./heatmap/HeatMapPage";
 import Dashboard from "./dashboard/Dashboard";
 import InventoryManagement from "./dashboard/InventoryManagement";
+import PredictionPage from "./dashboard/Predictionpage";
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
       <Route path="/heatmap" element={<HeatMapPage />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/inventory" element={<InventoryManagement />} />
+      <Route path="/predictions" element={<PredictionPage />} />
     </Routes>
   );
 }
