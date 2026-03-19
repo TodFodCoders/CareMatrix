@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   ReactNode,
 } from "react";
@@ -25,8 +26,12 @@ async function seedCapacity(id: string) {
 export function HospitalProvider({ children }: { children: ReactNode }) {
   const [hospitalId, setHospitalId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const init = useRef(false);
 
   useEffect(() => {
+    if (init.current) return;
+    init.current = true;
+
     const stored = localStorage.getItem("cm_hospital_id");
     if (stored) {
       setHospitalId(stored);
