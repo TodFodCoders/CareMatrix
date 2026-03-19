@@ -1,8 +1,8 @@
 {
   "version": "4.0",
-  "trained_at": "2026-03-19T18:50:55.515622",
+  "trained_at": "2026-03-20T03:10:56.916253",
   "total_rows": 2192,
-  "session_id": 35,
+  "session_id": 46,
   "global_mean": 35.31341240875913,
   "global_std": 9.946173842743686,
   "t_slope": 0.0004457294194694912,
@@ -214,7 +214,7 @@
     "early_month_flag": 0.001482837469989129,
     "lagged_ratio": 0.04735069897035078
   },
-  "training_time_sec": 2.15,
+  "training_time_sec": 1.5,
   "gpu_used": "NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB",
   "cpu_cores": 12
 }

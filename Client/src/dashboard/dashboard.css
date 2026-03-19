@@ -550,3 +550,50 @@
     background: #8f1d1d;
     color: #f2f0ea;
 }
+
+.stacked-hospitals {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.stacked-hospital {
+    border: 2px solid var(--ink);
+    padding: 0.6rem;
+    background: var(--paper);
+    transition: 0.2s ease;
+}
+
+.stacked-hospital.selected {
+    border-color: #2e7d32;
+    background: #e8f5e9;
+}
+
+.stacked-hospital.declined {
+    border-color: #8f1d1d;
+    background: #fdecea;
+    opacity: 0.75;
+}
+
+.stacked-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.stacked-actions {
+    margin-top: 0.4rem;
+    display: flex;
+    gap: 0.4rem;
+}
+
+.status-ok {
+    color: #2e7d32;
+    font-weight: bold;
+}
+
+.status-bad {
+    color: #8f1d1d;
+    font-weight: bold;
+}

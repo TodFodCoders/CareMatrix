@@ -699,6 +699,7 @@ function Dashboard() {
 
                 {registered.map((p) => {
                   const undecided = p.matches.filter((m) => !m.decided);
+
                   return (
                     <div
                       key={p.patientId}
@@ -713,59 +714,89 @@ function Dashboard() {
                             {p.priority}
                           </span>
                         </div>
+
                         <p className="notif-sub">
                           {p.department} · {p.patientId.slice(0, 8)}…
                         </p>
 
-                        {p.confirmed ? (
+                        {/* ✅ CONFIRMED */}
+                        {p.confirmed && (
                           <p className="notif-confirm-done">
                             ✓ Transfer confirmed
                           </p>
-                        ) : undecided.length === 0 ? (
-                          <p className="notif-sub status-pending">
-                            {p.matches.length === 0
-                              ? "Broadcasting — awaiting responses…"
-                              : "All responses decided — awaiting more…"}
-                          </p>
-                        ) : (
-                          <>
-                            <p className="notif-confirm-label">
-                              Hospitals accepting — confirm or deny:
+                        )}
+
+                        {/* ✅ STACKED HOSPITAL LIST */}
+                        <div className="stacked-hospitals">
+                          {p.matches.length === 0 && (
+                            <p className="notif-sub status-pending">
+                              Broadcasting — awaiting responses…
                             </p>
-                            {undecided.map((m) => (
+                          )}
+
+                          {p.matches.map((m) => {
+                            const isSelected = p.confirmed === m.hospital_id;
+                            const isRejected = m.decided && !isSelected;
+
+                            return (
                               <div
                                 key={m.hospital_id}
-                                className="transfer-decision-row"
+                                className={`stacked-hospital ${
+                                  isSelected
+                                    ? "selected"
+                                    : isRejected
+                                      ? "declined"
+                                      : ""
+                                }`}
                               >
-                                <span className="transfer-hosp-name">
-                                  {m.name}
-                                </span>
-                                <div className="transfer-decision-btns">
-                                  <button
-                                    className="td-btn-confirm"
-                                    onClick={() =>
-                                      handleConfirm(
-                                        p.patientId,
-                                        m.hospital_id,
-                                        m.name,
-                                      )
-                                    }
-                                  >
-                                    ✓ Confirm
-                                  </button>
-                                  <button
-                                    className="td-btn-deny"
-                                    onClick={() =>
-                                      handleDeny(p.patientId, m.hospital_id)
-                                    }
-                                  >
-                                    ✕ Deny
-                                  </button>
+                                <div className="stacked-info">
+                                  <span className="hospital-name">
+                                    🏥 {m.name}
+                                  </span>
+
+                                  {isSelected && (
+                                    <span className="status-ok">
+                                      ✓ Selected
+                                    </span>
+                                  )}
+
+                                  {isRejected && (
+                                    <span className="status-bad">
+                                      ✕ Rejected
+                                    </span>
+                                  )}
                                 </div>
+
+                                {/* ACTION BUTTONS */}
+                                {!p.confirmed && !m.decided && (
+                                  <div className="stacked-actions">
+                                    <button
+                                      className="td-btn-confirm"
+                                      onClick={() =>
+                                        handleConfirm(
+                                          p.patientId,
+                                          m.hospital_id,
+                                          m.name,
+                                        )
+                                      }
+                                    >
+                                      ✓ Confirm
+                                    </button>
+
+                                    <button
+                                      className="td-btn-deny"
+                                      onClick={() =>
+                                        handleDeny(p.patientId, m.hospital_id)
+                                      }
+                                    >
+                                      ✕ Deny
+                                    </button>
+                                  </div>
+                                )}
                               </div>
-                            ))}
-                          </>
-                        )}
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   );

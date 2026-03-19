@@ -10,6 +10,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 
+class Hospital(BaseModel):
+    name: str
+    hospital_id: str
+    lat: float
+    lng: float
+
+
 class HospitalRegister(BaseModel):
     name: str
     lat: float
@@ -82,6 +89,11 @@ app.add_middleware(
 
 DB_PATH = "carematrix.db"
 
+_patients: dict = {}
+_responses: list = []
+_assignments: list = []
+_response_counter = 0
+
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -97,17 +109,6 @@ CREATE TABLE IF NOT EXISTS hospitals (
 CREATE TABLE IF NOT EXISTS capacity (
   hospital_id TEXT, department TEXT, total INTEGER, available INTEGER,
   PRIMARY KEY (hospital_id, department)
-);
-CREATE TABLE IF NOT EXISTS patients (
-  id TEXT PRIMARY KEY, department TEXT, priority TEXT, lat REAL, lng REAL,
-  assigned INTEGER DEFAULT 0, status TEXT DEFAULT 'open'
-);
-CREATE TABLE IF NOT EXISTS responses (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, patient_id TEXT,
-  hospital_id TEXT, status TEXT, timestamp INTEGER
-);
-CREATE TABLE IF NOT EXISTS assignments (
-  patient_id TEXT, hospital_id TEXT, timestamp INTEGER
 );
 CREATE TABLE IF NOT EXISTS resource_requests (
   id TEXT PRIMARY KEY, requester_hospital_id TEXT, resource_type TEXT,
@@ -465,89 +466,105 @@ def update_capacity(data: CapacityUpdate):
 
 @app.get("/api/hospital/open-requests")
 def open_requests(department: str = None):
-    conn, cursor = get_db()
+    result = [p for p in _patients.values() if p["status"] == "open"]
     if department:
-        cursor.execute(
-            "SELECT * FROM patients WHERE status='open' AND department=?", (department,)
-        )
-    else:
-        cursor.execute("SELECT * FROM patients WHERE status='open'")
-    rows = cursor.fetchall()
-    conn.close()
-    return [tuple(r) for r in rows]
+        result = [p for p in result if p["department"] == department]
+    return [tuple(p.values()) for p in result]
 
 
 @app.post("/api/hospital/respond")
 def hospital_respond(data: HospitalResponse):
-    conn, cursor = get_db()
-    cursor.execute(
-        "INSERT INTO responses (patient_id, hospital_id, status, timestamp) VALUES (?, ?, ?, ?)",
-        (data.patient_id, data.hospital_id, data.status, int(time.time())),
+    global _response_counter
+    _response_counter += 1
+    _responses.append(
+        {
+            "id": _response_counter,
+            "patient_id": data.patient_id,
+            "hospital_id": data.hospital_id,
+            "status": data.status,
+            "timestamp": int(time.time()),
+        }
     )
-    conn.commit()
-    conn.close()
     return {"status": "recorded"}
 
 
 @app.post("/api/request")
 def create_request(data: PatientRequest):
-    conn, cursor = get_db()
     patient_id = str(uuid.uuid4())
-    cursor.execute(
-        "INSERT INTO patients (id, department, priority, lat, lng, assigned, status) VALUES (?, ?, ?, ?, ?, 0, 'open')",
-        (patient_id, data.department, data.priority, data.lat, data.lng),
-    )
-    conn.commit()
-    conn.close()
+    _patients[patient_id] = {
+        "id": patient_id,
+        "department": data.department,
+        "priority": data.priority,
+        "lat": data.lat,
+        "lng": data.lng,
+        "assigned": 0,
+        "status": "open",
+    }
     return {"patient_id": patient_id}
 
 
 @app.get("/api/patient/responses")
 def get_responses(patient_id: str):
+    accepted = [
+        r
+        for r in _responses
+        if r["patient_id"] == patient_id and r["status"] == "accepted"
+    ]
+    result = []
     conn, cursor = get_db()
-    cursor.execute(
-        "SELECT r.hospital_id, h.name, h.lat, h.lng FROM responses r JOIN hospitals h ON r.hospital_id = h.id WHERE r.patient_id=? AND r.status='accepted'",
-        (patient_id,),
-    )
-    rows = cursor.fetchall()
+    for r in accepted:
+        cursor.execute(
+            "SELECT id, name, lat, lng FROM hospitals WHERE id=?", (r["hospital_id"],)
+        )
+        h = cursor.fetchone()
+        if h:
+            result.append((h[0], h[1], h[2], h[3]))
     conn.close()
-    return [tuple(r) for r in rows]
+    return result
 
 
 @app.post("/api/patient/select")
 def select_hospital(data: PatientSelect):
+    resp = next(
+        (
+            r
+            for r in _responses
+            if r["patient_id"] == data.patient_id
+            and r["hospital_id"] == data.hospital_id
+            and r["status"] == "accepted"
+        ),
+        None,
+    )
+    if not resp:
+        return {"status": "invalid_selection"}
+
+    p = _patients.get(data.patient_id)
+    if not p or p["assigned"] == 1:
+        return {"status": "already_assigned"}
+
     conn, cursor = get_db()
     cursor.execute(
-        "SELECT * FROM responses WHERE patient_id=? AND hospital_id=? AND status='accepted'",
-        (data.patient_id, data.hospital_id),
-    )
-    if not cursor.fetchone():
-        conn.close()
-        return {"status": "invalid_selection"}
-    cursor.execute("SELECT * FROM patients WHERE id=?", (data.patient_id,))
-    p = cursor.fetchone()
-    if not p or p[5] == 1:
-        conn.close()
-        return {"status": "already_assigned"}
-    cursor.execute(
         "SELECT * FROM capacity WHERE hospital_id=? AND department=?",
-        (data.hospital_id, p[1]),
+        (data.hospital_id, p["department"]),
     )
     cap = cursor.fetchone()
     if not cap or cap[3] <= 0:
         conn.close()
         return {"status": "no_capacity"}
-    cursor.execute(
-        "UPDATE patients SET assigned=1, status='assigned' WHERE id=?",
-        (data.patient_id,),
+
+    p["assigned"] = 1
+    p["status"] = "assigned"
+    _assignments.append(
+        {
+            "patient_id": data.patient_id,
+            "hospital_id": data.hospital_id,
+            "timestamp": int(time.time()),
+        }
     )
-    cursor.execute(
-        "INSERT INTO assignments VALUES (?, ?, ?)",
-        (data.patient_id, data.hospital_id, int(time.time())),
-    )
+
     cursor.execute(
         "UPDATE capacity SET available=available-1 WHERE hospital_id=? AND department=?",
-        (data.hospital_id, p[1]),
+        (data.hospital_id, p["department"]),
     )
     conn.commit()
     conn.close()
@@ -556,13 +573,11 @@ def select_hospital(data: PatientSelect):
 
 @app.get("/api/getResult")
 def get_result(patient_id: str):
-    conn, cursor = get_db()
-    cursor.execute("SELECT * FROM assignments WHERE patient_id=?", (patient_id,))
-    a = cursor.fetchone()
-    if not a:
-        conn.close()
+    assignment = next((a for a in _assignments if a["patient_id"] == patient_id), None)
+    if not assignment:
         return {"status": "pending"}
-    cursor.execute("SELECT * FROM hospitals WHERE id=?", (a[1],))
+    conn, cursor = get_db()
+    cursor.execute("SELECT * FROM hospitals WHERE id=?", (assignment["hospital_id"],))
     h = cursor.fetchone()
     conn.close()
     return {"status": "assigned", "hospital": tuple(h) if h else None}
@@ -696,11 +711,9 @@ def register_hospital_with_id(data: HospitalRegisterWithId):
 
 @app.delete("/api/patient/{patient_id}")
 def delete_patient(patient_id: str):
-    conn, cursor = get_db()
-    cursor.execute("DELETE FROM patients WHERE id=?", (patient_id,))
-    cursor.execute("DELETE FROM responses WHERE patient_id=?", (patient_id,))
-    conn.commit()
-    conn.close()
+    global _responses
+    _patients.pop(patient_id, None)
+    _responses = [r for r in _responses if r["patient_id"] != patient_id]
     return {"status": "deleted"}
 
 
@@ -711,80 +724,117 @@ def debug_state():
         "hospitals": [
             tuple(r) for r in cursor.execute("SELECT * FROM hospitals").fetchall()
         ],
-        "patients": [
-            tuple(r) for r in cursor.execute("SELECT * FROM patients").fetchall()
-        ],
-        "responses": [
-            tuple(r) for r in cursor.execute("SELECT * FROM responses").fetchall()
-        ],
-        "assignments": [
-            tuple(r) for r in cursor.execute("SELECT * FROM assignments").fetchall()
-        ],
+        "patients": list(_patients.values()),
+        "responses": _responses,
+        "assignments": _assignments,
     }
     conn.close()
     return data
 
 
-# =========================
-# TRANSFER CONFIRM / DENY
-# =========================
-
-
 class PatientDenyResponse(BaseModel):
     patient_id: str
-    hospital_id: str  # the accepting hospital Hospital A is denying
+    hospital_id: str
 
 
 @app.post("/api/patient/deny-response")
 def deny_response(data: PatientDenyResponse):
-    """
-    Hospital A (source) explicitly denies Hospital B's acceptance offer.
-    Updates the response row from 'accepted' → 'denied_by_source'.
-    """
-    conn, cursor = get_db()
-    cursor.execute(
-        """
-        UPDATE responses
-        SET status = 'denied_by_source'
-        WHERE patient_id = ? AND hospital_id = ? AND status = 'accepted'
-        """,
-        (data.patient_id, data.hospital_id),
-    )
-    conn.commit()
-    conn.close()
+    for r in _responses:
+        if (
+            r["patient_id"] == data.patient_id
+            and r["hospital_id"] == data.hospital_id
+            and r["status"] == "accepted"
+        ):
+            r["status"] = "denied_by_source"
     return {"status": "denied"}
 
 
 @app.get("/api/patient/acceptance-status")
 def acceptance_status(patient_id: str, hospital_id: str):
-    """
-    Hospital B polls this to find out whether its acceptance was:
-      - 'pending'          → source hospital hasn't acted yet
-      - 'confirmed'        → source called selectHospital (patient assigned)
-      - 'denied_by_source' → source explicitly denied this hospital
-    """
-    conn, cursor = get_db()
-
-    cursor.execute(
-        "SELECT hospital_id FROM assignments WHERE patient_id = ?",
-        (patient_id,),
-    )
-    assignment = cursor.fetchone()
+    assignment = next((a for a in _assignments if a["patient_id"] == patient_id), None)
     if assignment:
-        conn.close()
-        if assignment[0] == hospital_id:
+        if assignment["hospital_id"] == hospital_id:
             return {"status": "confirmed"}
         return {"status": "denied_by_source"}
 
-    cursor.execute(
-        "SELECT status FROM responses WHERE patient_id = ? AND hospital_id = ? ORDER BY id DESC LIMIT 1",
-        (patient_id, hospital_id),
-    )
-    row = cursor.fetchone()
-    conn.close()
-
-    if not row:
+    matching = [
+        r
+        for r in _responses
+        if r["patient_id"] == patient_id and r["hospital_id"] == hospital_id
+    ]
+    if not matching:
         return {"status": "pending"}
-    if row[0] == "denied_by_source":
+    latest = max(matching, key=lambda x: x["id"])
+    if latest["status"] == "denied_by_source":
         return {"status": "denied_by_source"}
     return {"status": "pending"}
+
+
+class HospitalInit(BaseModel):
+    hospital_id: str
+    name: str = ""
+    lat: float = 0.0
+    lng: float = 0.0
+
+
+@app.post("/api/hospital/init")
+def init_hospital(data: HospitalInit):
+    conn, cursor = get_db()
+
+    cursor.execute(
+        "SELECT id, name, lat, lng FROM hospitals WHERE id=?",
+        (data.hospital_id,),
+    )
+    row = cursor.fetchone()
+
+    if row:
+        conn.close()
+        return {
+            "id": row[0],
+            "name": row[1],
+            "lat": row[2],
+            "lng": row[3],
+            "status": "existing",
+        }
+
+    cursor.execute(
+        "INSERT INTO hospitals (id, name, lat, lng, status) VALUES (?, ?, ?, ?, 'online')",
+        (
+            data.hospital_id,
+            data.name or data.hospital_id,
+            data.lat,
+            data.lng,
+        ),
+    )
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "id": data.hospital_id,
+        "name": data.name or data.hospital_id,
+        "lat": data.lat,
+        "lng": data.lng,
+        "status": "created",
+    }
+
+
+@app.post("/api/register/hospitals")
+def store_hospital(data: Hospital):
+    conn, cursor = get_db()
+
+    cursor.execute(
+        """
+        INSERT INTO hospitals (id, name, lat, lng, status)
+        VALUES (?, ?, ?, ?, 'online')
+        ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name,
+            status = 'online'
+        """,
+        (data.hospital_id, data.name, data.lat, data.lng),
+    )
+
+    conn.commit()
+    conn.close()
+
+    return {"status": "stored"}
