@@ -1,11 +1,16 @@
 import sqlite3
 import time
 import uuid
+import logging
+
+from fastapi import FastAPI
 
 import PridictionModel.core as coree
-from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+# Configure logging to suppress unwanted output
+logging.basicConfig(level=logging.WARNING)
 
 # =========================
 # MODELS
@@ -63,12 +68,6 @@ class ResourceResponse(BaseModel):
 class ResourceSelect(BaseModel):
     request_id: str
     hospital_id: str
-
-<<<<<<< HEAD
-class Groc(BaseModel):
-    data: dict
-=======
->>>>>>> 68efb80926f6c6fef04c3c27b91a416277363e3d
 
 # =========================
 # APP INIT
@@ -162,19 +161,12 @@ conn.commit()
 # HOSPITAL ROUTES
 # =========================
 
-<<<<<<< HEAD
-@app.post("/api/groc")
-def ask_grok(data: Groc):
-    result = print(data)
-    return result
-=======
->>>>>>> 68efb80926f6c6fef04c3c27b91a416277363e3d
 
 @app.post("/api/hospital/predict")
 def predict_capacity(data: PridictData):
     dic = {
-        "hospital123": "./PridictionModel/data/hospital123.csv",
-        "hospital321": "./PridictionModel/data/hospital321.csv",
+        'hospital123': "C:\\Project\\CareMatrix\\Server\\PridictionModel\\data\\hospital123.csv",
+        'hospital321': "C:\\Project\\CareMatrix\\Server\\PridictionModel\\data\\hospital321.csv"
     }
     path = dic[data.hospital_id]
     print(path)

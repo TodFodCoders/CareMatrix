@@ -1,4 +1,4 @@
-const BASE = "http://localhost:8000";
+const BASE = "http://10.97.203.81:8000";
 
 export async function registerHospital(name: string, lat: number, lng: number) {
   const r = await fetch(`${BASE}/api/hospital/register`, {
