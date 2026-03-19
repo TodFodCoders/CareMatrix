@@ -4,7 +4,7 @@ import sqlite3
 import uuid
 import time
 from pydantic import BaseModel
-
+import PridictionModel.core as coree
 # =========================
 # MODELS
 # =========================
@@ -14,6 +14,9 @@ class HospitalRegister(BaseModel):
     lat: float
     lng: float
 
+class PridictData(BaseModel):
+    hospital_id: str
+    date: str
 
 class CapacityUpdate(BaseModel):
     hospital_id: str
@@ -49,7 +52,6 @@ class ResourceResponse(BaseModel):
     request_id: str
     hospital_id: str
     status: str
-
 
 class ResourceSelect(BaseModel):
     request_id: str
@@ -146,6 +148,18 @@ conn.commit()
 # =========================
 # HOSPITAL ROUTES
 # =========================
+
+@app.post("/api/hospital/predict")
+def predict_capacity(data: PridictData):
+    dic = {
+        'hospital123': "C:\\Project\\CareMatrix\\Server\\PridictionModel\\data\\hospital123.csv",
+        'hospital321': "C:\\Project\\CareMatrix\\Server\\PridictionModel\\data\\hospital321.csv"
+    }
+    path = dic[data.hospital_id]
+    print(path)
+    coree.run_training(csv_path=path)
+    result = coree.predict_one(date_str=data.date)
+    return result
 
 @app.post("/api/resource/request")
 def create_resource_request(data: ResourceRequest):

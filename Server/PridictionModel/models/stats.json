@@ -1,0 +1,268 @@
+{
+  "version": "4.0",
+  "trained_at": "2026-03-19T08:20:15.720977",
+  "total_rows": 43801,
+  "session_id": 2,
+  "global_mean": 24.099952055889133,
+  "global_std": 10.106985253325709,
+  "t_slope": 1.352143735002813e-05,
+  "hol_mult": 0.9986757016721547,
+  "dowM": {
+    "0": 1.0583716067854176,
+    "1": 1.0614982193657043,
+    "2": 1.0607029633556158,
+    "3": 1.0601148869287809,
+    "4": 1.0579675318544908,
+    "5": 0.8487163352471294,
+    "6": 0.8530816693369788
+  },
+  "monM": {
+    "0": 1.307525021191088,
+    "1": 0.8961888678017988,
+    "2": 0.8992789942030327,
+    "3": 0.8989183396983165,
+    "4": 0.8959327152932947,
+    "5": 0.8935817684548196,
+    "6": 0.8933783890588611,
+    "7": 0.9000151755631751,
+    "8": 0.8923484787721973,
+    "9": 0.8894520884714351,
+    "10": 1.3151363184756713,
+    "11": 1.3107884079659726
+  },
+  "domM": {
+    "0": 1.007032893184279,
+    "1": 0.9941525079475451,
+    "2": 0.9991951643601367,
+    "3": 0.9952186695890644,
+    "4": 0.998330708975121,
+    "5": 0.9885623631244436,
+    "6": 0.9987053063086279,
+    "7": 1.0062836985172654,
+    "8": 0.9973221776926027,
+    "9": 0.9905794256894802,
+    "10": 0.997610329487608,
+    "11": 1.0000596197451523,
+    "12": 0.9943253990245482,
+    "13": 0.9928846400495221,
+    "14": 0.994584735640053,
+    "15": 0.9961119401535807,
+    "16": 1.0044683422087324,
+    "17": 0.9937202802550373,
+    "18": 0.9930575311265252,
+    "19": 0.998388339334122,
+    "20": 1.0056209493887531,
+    "21": 1.0056497645682538,
+    "22": 1.005275167234747,
+    "23": 1.0034886261057145,
+    "24": 1.0059091011837586,
+    "25": 1.0036327020032172,
+    "26": 1.0059667315427594,
+    "27": 1.0031428439517083,
+    "28": 1.0089120545331345,
+    "29": 1.0097781939221468,
+    "30": 1.0060610069097178
+  },
+  "facilities": [
+    "Cardiology",
+    "Dermatology",
+    "ENT",
+    "General Medicine",
+    "Neurology",
+    "Orthopedics",
+    "Pediatrics"
+  ],
+  "climate": "semi_arid",
+  "cap_doctors": 5.0,
+  "cap_defaults": {
+    "doctors": 5.0,
+    "counters": 3.0,
+    "totalBeds": 100,
+    "bedsOccupied": 72,
+    "opdHrs": 6,
+    "edBeds": 20,
+    "edOccupied": 12,
+    "admitRate": 8.0,
+    "edRate": 3.0,
+    "walkInPct": 36.0,
+    "phonePct": 34.0
+  },
+  "best_model": "GBM",
+  "best_mae": 0.0,
+  "best_rmse": 0.0,
+  "best_mape": 0.0,
+  "best_r2": 1.0,
+  "all_results": {
+    "GBM": {
+      "name": "GBM",
+      "mae": 0.0,
+      "rmse": 0.0,
+      "mape": 0.0,
+      "r2": 1.0,
+      "accuracy": 100.0
+    },
+    "RF": {
+      "name": "RF",
+      "mae": 0.16,
+      "rmse": 0.42,
+      "mape": 0.82,
+      "r2": 0.9983,
+      "accuracy": 99.2
+    },
+    "KNN": {
+      "name": "KNN",
+      "mae": 2.54,
+      "rmse": 3.27,
+      "mape": 13.09,
+      "r2": 0.8943,
+      "accuracy": 86.9
+    },
+    "Ridge": {
+      "name": "Ridge",
+      "mae": 0.0,
+      "rmse": 0.0,
+      "mape": 0.0,
+      "r2": 1.0,
+      "accuracy": 100.0
+    },
+    "DT": {
+      "name": "DT",
+      "mae": 0.0,
+      "rmse": 0.02,
+      "mape": 0.01,
+      "r2": 1.0,
+      "accuracy": 100.0
+    }
+  },
+  "spec_info": {
+    "Cardiology": {
+      "rows": 6224,
+      "used_model": "GBM",
+      "is_known_specialty": true,
+      "paper_prior": "GBM",
+      "method": "data_verified",
+      "all_mae": {
+        "GBM": 0.0,
+        "RF": 0.14,
+        "KNN": 2.54,
+        "Ridge": 0.0,
+        "DT": 0.0
+      }
+    },
+    "Dermatology": {
+      "rows": 6264,
+      "used_model": "GBM",
+      "is_known_specialty": true,
+      "paper_prior": "GBM",
+      "method": "data_verified",
+      "all_mae": {
+        "GBM": 0.0,
+        "RF": 0.16,
+        "KNN": 2.45,
+        "Ridge": 0.0,
+        "DT": 0.0
+      }
+    },
+    "ENT": {
+      "rows": 6278,
+      "used_model": "GBM",
+      "is_known_specialty": true,
+      "paper_prior": "GBM",
+      "method": "data_verified",
+      "all_mae": {
+        "GBM": 0.0,
+        "RF": 0.15,
+        "KNN": 2.48,
+        "Ridge": 0.0,
+        "DT": 0.0
+      }
+    },
+    "General Medicine": {
+      "rows": 6206,
+      "used_model": "GBM",
+      "is_known_specialty": true,
+      "paper_prior": "GBM",
+      "method": "data_verified",
+      "all_mae": {
+        "GBM": 0.0,
+        "RF": 0.16,
+        "KNN": 2.61,
+        "Ridge": 0.0,
+        "DT": 0.0
+      }
+    },
+    "Neurology": {
+      "rows": 6331,
+      "used_model": "GBM",
+      "is_known_specialty": false,
+      "paper_prior": null,
+      "method": "data_selected",
+      "all_mae": {
+        "GBM": 0.0,
+        "RF": 0.15,
+        "KNN": 2.57,
+        "Ridge": 0.0,
+        "DT": 0.0
+      }
+    },
+    "Orthopedics": {
+      "rows": 6255,
+      "used_model": "GBM",
+      "is_known_specialty": false,
+      "paper_prior": null,
+      "method": "data_selected",
+      "all_mae": {
+        "GBM": 0.0,
+        "RF": 0.15,
+        "KNN": 2.49,
+        "Ridge": 0.0,
+        "DT": 0.0
+      }
+    },
+    "Pediatrics": {
+      "rows": 6243,
+      "used_model": "GBM",
+      "is_known_specialty": false,
+      "paper_prior": null,
+      "method": "data_selected",
+      "all_mae": {
+        "GBM": 0.0,
+        "RF": 0.16,
+        "KNN": 2.48,
+        "Ridge": 0.0,
+        "DT": 0.0
+      }
+    }
+  },
+  "spec_best": {
+    "Cardiology": "GBM",
+    "Dermatology": "GBM",
+    "ENT": "GBM",
+    "General Medicine": "GBM",
+    "Neurology": "GBM",
+    "Orthopedics": "GBM",
+    "Pediatrics": "GBM"
+  },
+  "feature_importance": {
+    "day_of_week": 0.006145505825160239,
+    "month": 0.020872383005802634,
+    "day_of_month": 0.001011236391915616,
+    "lagged_arrivals": 0.23975171884591093,
+    "revisit_rate": 0.00018495044815991068,
+    "holiday": 0.00010337779811753794,
+    "hour_of_day": 0.03786538999031298,
+    "morning_shift": 0.004391261741626509,
+    "temperature": 0.0013289956843392386,
+    "air_quality": 0.0019296244639319005,
+    "rainfall": 0.0010754244719546932,
+    "seasonal_prior": 0.003082231786772873,
+    "doctor_load": 0.4181098720246844,
+    "weekend_flag": 0.005553790903536903,
+    "peak_month_flag": 0.0014732053630721253,
+    "early_month_flag": 0.00011725955822147162,
+    "lagged_ratio": 0.25700377169648
+  },
+  "training_time_sec": 34.54,
+  "gpu_used": "NVIDIA GeForce RTX 3050 6GB Laptop GPU, 6144 MiB",
+  "cpu_cores": 16
+}
