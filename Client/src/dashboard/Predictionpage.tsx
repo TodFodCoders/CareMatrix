@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getPrediction } from "../api";
 import type { PredictionResponse } from "../api";
+import { useHospital } from "../HospitalContext";
 import "./prediction.css";
 
 const STATUS_COLOR: Record<string, string> = {
@@ -12,20 +13,22 @@ const STATUS_COLOR: Record<string, string> = {
   ok: "#2e7d32",
 };
 
+const VW = 800;
+const VH = 380;
+
 function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function buildChartPoints(data: PredictionResponse, w: number, h: number) {
-  const pad = { t: 24, r: 16, b: 40, l: 48 };
-  const cw = w - pad.l - pad.r;
-  const ch = h - pad.t - pad.b;
+function buildChartPoints(data: PredictionResponse) {
+  const pad = { t: 20, r: 20, b: 36, l: 44 };
+  const cw = VW - pad.l - pad.r;
+  const ch = VH - pad.t - pad.b;
 
   const { low, high, predicted } = data.prediction;
   const cap = data.bed_occupancy.total_beds;
   const edMax = data.emergency_load.ed_beds;
 
-  // simulate hourly curve across 24h using the prediction values
   const hrs = Array.from({ length: 25 }, (_, i) => {
     const t = i / 24;
     const surge = Math.sin(t * Math.PI) * 0.6 + Math.sin(t * Math.PI * 2) * 0.2;
@@ -41,8 +44,7 @@ function buildChartPoints(data: PredictionResponse, w: number, h: number) {
   });
 
   const maxY = Math.max(cap, high + 5);
-  const minY = 0;
-  const sy = (v: number) => pad.t + ch - ((v - minY) / (maxY - minY)) * ch;
+  const sy = (v: number) => pad.t + ch - (v / maxY) * ch;
   const sx = (i: number) => pad.l + (i / 24) * cw;
 
   const mainPath = hrs
@@ -92,7 +94,6 @@ function buildChartPoints(data: PredictionResponse, w: number, h: number) {
     yTicks,
     pad,
     maxY,
-    minY,
     cw,
     ch,
   };
@@ -100,27 +101,17 @@ function buildChartPoints(data: PredictionResponse, w: number, h: number) {
 
 export default function PredictionPage() {
   const navigate = useNavigate();
+  const { hospitalId } = useHospital();
   const [date, setDate] = useState(today());
   const [data, setData] = useState<PredictionResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const [svgSize, setSvgSize] = useState({ w: 800, h: 400 });
-
-  useEffect(() => {
-    const obs = new ResizeObserver((entries) => {
-      const e = entries[0];
-      if (e) setSvgSize({ w: e.contentRect.width, h: e.contentRect.height });
-    });
-    if (svgRef.current?.parentElement)
-      obs.observe(svgRef.current.parentElement);
-    return () => obs.disconnect();
-  }, []);
 
   const fetchData = async (d: string) => {
+    if (!hospitalId) return;
     setLoading(true);
     setError(null);
-    const res = await getPrediction(d).catch(() => null);
+    const res = await getPrediction(d, hospitalId).catch(() => null);
     if (!res) setError("Backend unreachable");
     else setData(res);
     setLoading(false);
@@ -128,9 +119,9 @@ export default function PredictionPage() {
 
   useEffect(() => {
     fetchData(date);
-  }, [date]);
+  }, [date, hospitalId]);
 
-  const c = data ? buildChartPoints(data, svgSize.w, svgSize.h) : null;
+  const c = data ? buildChartPoints(data) : null;
 
   const statusColor = (s: string) => STATUS_COLOR[s] ?? "#888";
 
@@ -154,7 +145,10 @@ export default function PredictionPage() {
         <div className="pred-chart-panel">
           <div className="pred-chart-title">
             <span>Patient Surge — 24h Forecast</span>
-            {data && (
+            {loading && (
+              <div className="skel-block" style={{ width: 180, height: 22 }} />
+            )}
+            {!loading && data && (
               <span className="pred-model-badge">
                 {data.prediction.model_used} · {data.prediction.ml_blend_pct}%
                 ML · {data.prediction.confidence_pct}% conf
@@ -163,11 +157,43 @@ export default function PredictionPage() {
           </div>
 
           <div className="pred-chart-wrap">
-            {loading && <div className="pred-loading">Loading forecast…</div>}
             {error && <div className="pred-error">{error}</div>}
 
+            {loading && (
+              <div className="pred-skel-chart">
+                <div
+                  className="skel-line"
+                  style={{ width: "100%", height: "100%" }}
+                />
+                {[20, 40, 60, 80].map((p) => (
+                  <div
+                    key={p}
+                    className="skel-gridline"
+                    style={{ bottom: `${p}%` }}
+                  />
+                ))}
+                <svg
+                  className="pred-skel-svg"
+                  viewBox={`0 0 ${VW} ${VH}`}
+                  preserveAspectRatio="none"
+                >
+                  <polyline
+                    points="44,300 164,240 284,160 404,120 524,160 644,220 764,280"
+                    fill="none"
+                    stroke="#11111114"
+                    strokeWidth="3"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+            )}
+
             {data && c && (
-              <svg ref={svgRef} width="100%" height="100%" className="pred-svg">
+              <svg
+                viewBox={`0 0 ${VW} ${VH}`}
+                preserveAspectRatio="none"
+                className="pred-svg"
+              >
                 <defs>
                   <linearGradient id="band-grad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#8f1d1d" stopOpacity="0.18" />
@@ -206,7 +232,7 @@ export default function PredictionPage() {
                   <text
                     key={h}
                     x={c.sx(h)}
-                    y={svgSize.h - c.pad.b + 16}
+                    y={VH - c.pad.b + 14}
                     textAnchor="middle"
                     className="pred-tick"
                   >
@@ -354,7 +380,13 @@ export default function PredictionPage() {
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />
-            {data && (
+            {loading && (
+              <div
+                className="skel-block"
+                style={{ width: "70%", height: 10, marginTop: 8 }}
+              />
+            )}
+            {!loading && data && (
               <p className="pred-season">
                 Season: <strong>{data.prediction.season_used}</strong> ·
                 Facility: <strong>{data.prediction.facility}</strong>
@@ -363,7 +395,21 @@ export default function PredictionPage() {
           </div>
 
           {/* ALERTS */}
-          {data && data.alerts.length > 0 && (
+          {loading && (
+            <div className="pred-alerts">
+              <div className="pred-alert skel-alert">
+                <div
+                  className="skel-block"
+                  style={{ width: "60%", height: 10 }}
+                />
+                <div
+                  className="skel-block"
+                  style={{ width: "90%", height: 10 }}
+                />
+              </div>
+            </div>
+          )}
+          {!loading && data && data.alerts.length > 0 && (
             <div className="pred-alerts">
               {data.alerts.map((a, i) => (
                 <div
@@ -384,7 +430,73 @@ export default function PredictionPage() {
           )}
 
           {/* SURGE SUMMARY — bottom right */}
-          {data && (
+          {loading && (
+            <div className="pred-surge">
+              <div className="pred-surge-header">
+                <div
+                  className="skel-block"
+                  style={{ width: 100, height: 10 }}
+                />
+                <div className="skel-block" style={{ width: 70, height: 10 }} />
+              </div>
+              <div className="pred-surge-big skel-surge-big">
+                <div
+                  className="skel-block"
+                  style={{ width: 100, height: 64 }}
+                />
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 8 }}
+                >
+                  <div
+                    className="skel-block"
+                    style={{ width: 50, height: 12 }}
+                  />
+                  <div
+                    className="skel-block"
+                    style={{ width: 50, height: 12 }}
+                  />
+                </div>
+              </div>
+              <div className="pred-stat-grid">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="pred-stat-block">
+                    <div
+                      className="skel-block"
+                      style={{ width: "40%", height: 9 }}
+                    />
+                    <div
+                      className="skel-block"
+                      style={{ width: "60%", height: 28, marginTop: 4 }}
+                    />
+                    <div
+                      className="skel-block"
+                      style={{ width: "100%", height: 6, marginTop: 6 }}
+                    />
+                    <div
+                      className="skel-block"
+                      style={{ width: "70%", height: 9, marginTop: 4 }}
+                    />
+                  </div>
+                ))}
+                <div className="pred-stat-block pred-stat-wide">
+                  <div
+                    className="skel-block"
+                    style={{ width: "40%", height: 9 }}
+                  />
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                      <div
+                        key={i}
+                        className="skel-block"
+                        style={{ width: 48, height: 52 }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          {!loading && data && (
             <div className="pred-surge">
               <div className="pred-surge-header">
                 <p className="pred-label">Surge Forecast</p>

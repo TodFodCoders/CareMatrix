@@ -186,7 +186,13 @@ function Dashboard() {
 
         <div className="account-menu">
           <div className="account-avatar">DR</div>
-          <button className="signout-button" onClick={() => navigate("/login")}>
+          <button
+            className="signout-button"
+            onClick={() => {
+              localStorage.removeItem("cm_hospital_id");
+              navigate("/login");
+            }}
+          >
             Sign Out
           </button>
         </div>
@@ -196,29 +202,28 @@ function Dashboard() {
         <section className="welcome-panel">
           <div className="hero-cross" />
           <div className="panel-logo" />
-          <p className="dashboard-label">Emergency Access</p>
           <h2>Welcome</h2>
           <p className="welcome-copy">Rapid intake controls.</p>
 
           <div className="quick-links">
-            <button className="mini-action">Register Patient</button>
             <button
               className="mini-action"
               onClick={() => navigate("/inventory")}
             >
               Inventory Management
             </button>
-            <button
-              className="mini-action"
-              onClick={() => navigate("/predictions")}
-            >
-              Predictions
-            </button>
+            <button className="mini-action">Emergency Alert</button>
             <button
               className="mini-action"
               onClick={() => navigate("/heatmap")}
             >
               Heat Map
+            </button>
+            <button
+              className="mini-action"
+              onClick={() => navigate("/prediction")}
+            >
+              Surge Prediction
             </button>
           </div>
         </section>

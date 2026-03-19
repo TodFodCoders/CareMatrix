@@ -110,10 +110,11 @@ export default function InventoryManagement() {
     }).format(num);
 
   const generatePrediction = async () => {
+    if (!hospitalId) return;
     setLoading(true);
     setOrderDone(false);
 
-    const data = await getPrediction(today()).catch(() => null);
+    const data = await getPrediction(today(), hospitalId).catch(() => null);
 
     let patientCount: number;
 

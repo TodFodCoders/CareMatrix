@@ -1,22 +1,27 @@
+import sqlite3
+import time
+import uuid
+
+import PridictionModel.core as coree
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import sqlite3
-import uuid
-import time
 from pydantic import BaseModel
-import PridictionModel.core as coree
+
 # =========================
 # MODELS
 # =========================
+
 
 class HospitalRegister(BaseModel):
     name: str
     lat: float
     lng: float
 
+
 class PridictData(BaseModel):
     hospital_id: str
     date: str
+
 
 class CapacityUpdate(BaseModel):
     hospital_id: str
@@ -42,6 +47,7 @@ class PatientSelect(BaseModel):
     patient_id: str
     hospital_id: str
 
+
 class ResourceRequest(BaseModel):
     hospital_id: str
     resource_type: str
@@ -53,9 +59,11 @@ class ResourceResponse(BaseModel):
     hospital_id: str
     status: str
 
+
 class ResourceSelect(BaseModel):
     request_id: str
     hospital_id: str
+
 
 # =========================
 # APP INIT
@@ -78,7 +86,7 @@ cursor = conn.cursor()
 # DB INIT
 # =========================
 
-cursor.executescript("""                     
+cursor.executescript("""
 CREATE TABLE IF NOT EXISTS hospitals (
   id TEXT PRIMARY KEY,
   name TEXT,
@@ -118,7 +126,7 @@ CREATE TABLE IF NOT EXISTS assignments (
   hospital_id TEXT,
   timestamp INTEGER
 );
-                     
+
 CREATE TABLE IF NOT EXISTS resource_requests (
   id TEXT PRIMARY KEY,
   requester_hospital_id TEXT,
@@ -149,11 +157,12 @@ conn.commit()
 # HOSPITAL ROUTES
 # =========================
 
+
 @app.post("/api/hospital/predict")
 def predict_capacity(data: PridictData):
     dic = {
-        'hospital123': "C:\\Project\\CareMatrix\\Server\\PridictionModel\\data\\hospital123.csv",
-        'hospital321': "C:\\Project\\CareMatrix\\Server\\PridictionModel\\data\\hospital321.csv"
+        "hospital123": "./PridictionModel/data/hospital123.csv",
+        "hospital321": "./PridictionModel/data/hospital321.csv",
     }
     path = dic[data.hospital_id]
     print(path)
@@ -161,23 +170,28 @@ def predict_capacity(data: PridictData):
     result = coree.predict_one(date_str=data.date)
     return result
 
+
 @app.post("/api/resource/request")
 def create_resource_request(data: ResourceRequest):
     request_id = str(uuid.uuid4())
 
-    cursor.execute("""
+    cursor.execute(
+        """
         INSERT INTO resource_requests
         VALUES (?, ?, ?, ?, 'open', ?)
-    """, (
-        request_id,
-        data.hospital_id,
-        data.resource_type,
-        data.quantity,
-        int(time.time())
-    ))
+    """,
+        (
+            request_id,
+            data.hospital_id,
+            data.resource_type,
+            data.quantity,
+            int(time.time()),
+        ),
+    )
     conn.commit()
 
     return {"request_id": request_id}
+
 
 @app.get("/api/resource/open")
 def get_open_resource_requests():
@@ -187,32 +201,35 @@ def get_open_resource_requests():
     """)
     return cursor.fetchall()
 
+
 @app.post("/api/resource/respond")
 def respond_resource(data: ResourceResponse):
 
-    cursor.execute("""
+    cursor.execute(
+        """
         INSERT INTO resource_responses
         (request_id, provider_hospital_id, status, timestamp)
         VALUES (?, ?, ?, ?)
-    """, (
-        data.request_id,
-        data.hospital_id,
-        data.status,
-        int(time.time())
-    ))
+    """,
+        (data.request_id, data.hospital_id, data.status, int(time.time())),
+    )
 
     conn.commit()
     return {"status": "recorded"}
 
+
 @app.get("/api/resource/responses")
 def get_resource_responses(request_id: str):
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT r.provider_hospital_id, h.name, h.lat, h.lng
         FROM resource_responses r
         JOIN hospitals h ON r.provider_hospital_id = h.id
         WHERE r.request_id=? AND r.status='accepted'
-    """, (request_id,))
+    """,
+        (request_id,),
+    )
 
     return cursor.fetchall()
 
@@ -221,24 +238,31 @@ def get_resource_responses(request_id: str):
 def select_resource_provider(data: ResourceSelect):
 
     # validate response
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT * FROM resource_responses
         WHERE request_id=? AND provider_hospital_id=? AND status='accepted'
-    """, (data.request_id, data.hospital_id))
+    """,
+        (data.request_id, data.hospital_id),
+    )
 
     if not cursor.fetchone():
         return {"status": "invalid_selection"}
 
     # update request
-    cursor.execute("""
+    cursor.execute(
+        """
         UPDATE resource_requests
         SET status='fulfilled'
         WHERE id=?
-    """, (data.request_id,))
+    """,
+        (data.request_id,),
+    )
 
     conn.commit()
 
     return {"status": "fulfilled"}
+
 
 @app.post("/api/hospital/register")
 def register_hospital(data: HospitalRegister):
@@ -246,7 +270,7 @@ def register_hospital(data: HospitalRegister):
 
     cursor.execute(
         "INSERT INTO hospitals VALUES (?, ?, ?, ?, 'online')",
-        (hospital_id, data.name, data.lat, data.lng)
+        (hospital_id, data.name, data.lat, data.lng),
     )
     conn.commit()
 
@@ -255,18 +279,21 @@ def register_hospital(data: HospitalRegister):
 
 @app.post("/api/hospital/capacity")
 def update_capacity(data: CapacityUpdate):
-    cursor.execute("""
+    cursor.execute(
+        """
         INSERT INTO capacity VALUES (?, ?, ?, ?)
         ON CONFLICT(hospital_id, department)
         DO UPDATE SET total=?, available=?
-    """, (
-        data.hospital_id,
-        data.department,
-        data.total,
-        data.available,
-        data.total,
-        data.available
-    ))
+    """,
+        (
+            data.hospital_id,
+            data.department,
+            data.total,
+            data.available,
+            data.total,
+            data.available,
+        ),
+    )
     conn.commit()
 
     return {"status": "ok"}
@@ -276,20 +303,18 @@ def update_capacity(data: CapacityUpdate):
 # PATIENT REQUEST (BROADCAST)
 # =========================
 
+
 @app.post("/api/request")
 def create_request(data: PatientRequest):
     patient_id = str(uuid.uuid4())
 
-    cursor.execute("""
+    cursor.execute(
+        """
         INSERT INTO patients (id, department, priority, lat, lng, assigned, status)
         VALUES (?, ?, ?, ?, ?, 0, 'open')
-    """, (
-        patient_id,
-        data.department,
-        data.priority,
-        data.lat,
-        data.lng
-    ))
+    """,
+        (patient_id, data.department, data.priority, data.lat, data.lng),
+    )
     conn.commit()
 
     return {"patient_id": patient_id}
@@ -299,13 +324,17 @@ def create_request(data: PatientRequest):
 # HOSPITAL FETCH OPEN REQUESTS
 # =========================
 
+
 @app.get("/api/hospital/open-requests")
 def open_requests(department: str = None):
     if department:
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT * FROM patients
             WHERE status='open' AND department=?
-        """, (department,))
+        """,
+            (department,),
+        )
     else:
         cursor.execute("""
             SELECT * FROM patients
@@ -319,18 +348,17 @@ def open_requests(department: str = None):
 # HOSPITAL RESPONDS
 # =========================
 
+
 @app.post("/api/hospital/respond")
 def hospital_respond(data: HospitalResponse):
 
-    cursor.execute("""
+    cursor.execute(
+        """
         INSERT INTO responses (patient_id, hospital_id, status, timestamp)
         VALUES (?, ?, ?, ?)
-    """, (
-        data.patient_id,
-        data.hospital_id,
-        data.status,
-        int(time.time())
-    ))
+    """,
+        (data.patient_id, data.hospital_id, data.status, int(time.time())),
+    )
     conn.commit()
 
     return {"status": "recorded"}
@@ -340,15 +368,19 @@ def hospital_respond(data: HospitalResponse):
 # PATIENT GET RESPONSES
 # =========================
 
+
 @app.get("/api/patient/responses")
 def get_responses(patient_id: str):
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT r.hospital_id, h.name, h.lat, h.lng
         FROM responses r
         JOIN hospitals h ON r.hospital_id = h.id
         WHERE r.patient_id=? AND r.status='accepted'
-    """, (patient_id,))
+    """,
+        (patient_id,),
+    )
 
     return cursor.fetchall()
 
@@ -357,14 +389,18 @@ def get_responses(patient_id: str):
 # PATIENT SELECT FINAL HOSPITAL
 # =========================
 
+
 @app.post("/api/patient/select")
 def select_hospital(data: PatientSelect):
 
     # check if hospital responded
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT * FROM responses
         WHERE patient_id=? AND hospital_id=? AND status='accepted'
-    """, (data.patient_id, data.hospital_id))
+    """,
+        (data.patient_id, data.hospital_id),
+    )
 
     if not cursor.fetchone():
         return {"status": "invalid_selection"}
@@ -377,10 +413,13 @@ def select_hospital(data: PatientSelect):
         return {"status": "already_assigned"}
 
     # check capacity
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT * FROM capacity
         WHERE hospital_id=? AND department=?
-    """, (data.hospital_id, p[1]))
+    """,
+        (data.hospital_id, p[1]),
+    )
 
     cap = cursor.fetchone()
 
@@ -388,24 +427,29 @@ def select_hospital(data: PatientSelect):
         return {"status": "no_capacity"}
 
     # assign
-    cursor.execute("""
+    cursor.execute(
+        """
         UPDATE patients SET assigned=1, status='assigned'
         WHERE id=?
-    """, (data.patient_id,))
+    """,
+        (data.patient_id,),
+    )
 
-    cursor.execute("""
+    cursor.execute(
+        """
         INSERT INTO assignments VALUES (?, ?, ?)
-    """, (
-        data.patient_id,
-        data.hospital_id,
-        int(time.time())
-    ))
+    """,
+        (data.patient_id, data.hospital_id, int(time.time())),
+    )
 
-    cursor.execute("""
+    cursor.execute(
+        """
         UPDATE capacity
         SET available=available-1
         WHERE hospital_id=? AND department=?
-    """, (data.hospital_id, p[1]))
+    """,
+        (data.hospital_id, p[1]),
+    )
 
     conn.commit()
 
@@ -416,30 +460,35 @@ def select_hospital(data: PatientSelect):
 # RESULT
 # =========================
 
+
 @app.get("/api/getResult")
 def get_result(patient_id: str):
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT * FROM assignments WHERE patient_id=?
-    """, (patient_id,))
+    """,
+        (patient_id,),
+    )
     a = cursor.fetchone()
 
     if not a:
         return {"status": "pending"}
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT * FROM hospitals WHERE id=?
-    """, (a[1],))
+    """,
+        (a[1],),
+    )
     h = cursor.fetchone()
 
-    return {
-        "status": "assigned",
-        "hospital": h
-    }
+    return {"status": "assigned", "hospital": h}
 
 
 # =========================
 # HEATMAP
 # =========================
+
 
 @app.get("/api/heatmap")
 def heatmap():
@@ -459,15 +508,17 @@ def heatmap():
         available = r[5] if r[5] else 0
         demand = round((1 - available / total) * 100) if total else 0
 
-        result.append({
-            "id": r[0],
-            "name": r[1],
-            "lat": r[2],
-            "lng": r[3],
-            "total": total,
-            "available": available,
-            "demand": demand
-        })
+        result.append(
+            {
+                "id": r[0],
+                "name": r[1],
+                "lat": r[2],
+                "lng": r[3],
+                "total": total,
+                "available": available,
+                "demand": demand,
+            }
+        )
 
     return result
 
@@ -476,11 +527,12 @@ def heatmap():
 # DEBUG
 # =========================
 
+
 @app.get("/api/debug/state")
 def debug_state():
     return {
         "hospitals": cursor.execute("SELECT * FROM hospitals").fetchall(),
         "patients": cursor.execute("SELECT * FROM patients").fetchall(),
         "responses": cursor.execute("SELECT * FROM responses").fetchall(),
-        "assignments": cursor.execute("SELECT * FROM assignments").fetchall()
+        "assignments": cursor.execute("SELECT * FROM assignments").fetchall(),
     }

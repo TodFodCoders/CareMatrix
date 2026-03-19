@@ -224,10 +224,12 @@ export type PredictionResponse = {
 
 export async function getPrediction(
   date: string,
-  facility = "all",
+  hospital_id: string,
 ): Promise<PredictionResponse> {
-  const r = await fetch(
-    `${BASE}/api/predict?date=${date}&facility=${facility}`,
-  );
+  const r = await fetch(`${BASE}/api/hospital/predict`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ hospital_id, date }),
+  });
   return r.json();
 }
