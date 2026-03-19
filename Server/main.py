@@ -57,6 +57,9 @@ class ResourceSelect(BaseModel):
     request_id: str
     hospital_id: str
 
+class Groc(BaseModel):
+    data: dict
+
 # =========================
 # APP INIT
 # =========================
@@ -148,6 +151,11 @@ conn.commit()
 # =========================
 # HOSPITAL ROUTES
 # =========================
+
+@app.post("/api/groc")
+def ask_grok(data: Groc):
+    result = print(data)
+    return result
 
 @app.post("/api/hospital/predict")
 def predict_capacity(data: PridictData):
@@ -322,6 +330,23 @@ def open_requests(department: str = None):
 @app.post("/api/hospital/respond")
 def hospital_respond(data: HospitalResponse):
 
+    # check if already assigned
+    cursor.execute("SELECT assigned FROM patients WHERE id=?", (data.patient_id,))
+    assigned = cursor.fetchone()
+
+    if assigned and assigned[0] == 1:
+        return {"status": "already_taken"}
+
+    # prevent duplicate response
+    cursor.execute("""
+        SELECT * FROM responses
+        WHERE patient_id=? AND hospital_id=?
+    """, (data.patient_id, data.hospital_id))
+
+    if cursor.fetchone():
+        return {"status": "already_responded"}
+
+    # store response
     cursor.execute("""
         INSERT INTO responses (patient_id, hospital_id, status, timestamp)
         VALUES (?, ?, ?, ?)
@@ -331,8 +356,38 @@ def hospital_respond(data: HospitalResponse):
         data.status,
         int(time.time())
     ))
-    conn.commit()
 
+    if data.status == "accepted":
+
+        # atomic update to prevent race condition
+        cursor.execute("""
+            UPDATE patients
+            SET status='closed', assigned=1
+            WHERE id=? AND assigned=0
+        """, (data.patient_id,))
+
+        if cursor.rowcount == 0:
+            return {"status": "already_taken"}
+
+        # get patient data
+        cursor.execute("SELECT * FROM patients WHERE id=?", (data.patient_id,))
+        patient = cursor.fetchone()
+
+        # get hospital data
+        cursor.execute("""
+            SELECT id, name, lat, lng FROM hospitals WHERE id=?
+        """, (data.hospital_id,))
+        hospital = cursor.fetchone()
+
+        conn.commit()
+
+        return {
+            "status": "accepted",
+            "patient": patient,
+            "hospital": hospital
+        }
+
+    conn.commit()
     return {"status": "recorded"}
 
 
