@@ -1,26 +1,38 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useHospital } from "../HospitalContext";
 
 function Login() {
   const [ribbonCycle, setRibbonCycle] = useState(0);
+  const [hospitalId, setHospitalIdInput] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { setHospitalId } = useHospital();
 
   useEffect(() => {
     setRibbonCycle(1);
   }, []);
 
-  const triggerRibbon = () => {
-    setRibbonCycle((v) => v + 1);
-  };
+  const triggerRibbon = () => setRibbonCycle((v) => v + 1);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    triggerRibbon();
+    setError("");
 
-    // fake login → navigate to dashboard/heatmap
-    setTimeout(() => {
-      navigate("/dashboard");
-    }, 200);
+    if (!hospitalId.trim()) {
+      setError("Hospital ID is required");
+      return;
+    }
+    if (!password.trim()) {
+      setError("Password is required");
+      return;
+    }
+
+    triggerRibbon();
+    setHospitalId(hospitalId.trim());
+
+    setTimeout(() => navigate("/dashboard"), 200);
   };
 
   return (
@@ -28,7 +40,6 @@ function Login() {
       className={`dashboard-shell ${ribbonCycle > 0 ? "animate-ribbon" : ""}`}
       data-ribbon-cycle={ribbonCycle % 2}
     >
-      {/* TOP BAR */}
       <header className="dashboard-topbar">
         <div className="brand-block">
           <div className="brand-logo" />
@@ -37,9 +48,7 @@ function Login() {
         </div>
       </header>
 
-      {/* MAIN LOGIN GRID */}
       <section className="dashboard-grid">
-        {/* LEFT PANEL (INFO / HERO) */}
         <section className="welcome-panel">
           <div className="hero-cross" />
           <div className="panel-logo" />
@@ -59,7 +68,6 @@ function Login() {
           </div>
         </section>
 
-        {/* RIGHT PANEL (LOGIN FORM) */}
         <section className="workspace-panel">
           <section className="form-panel">
             <div className="section-heading">
@@ -72,14 +80,28 @@ function Login() {
 
             <form className="quick-form" onSubmit={handleLogin}>
               <label>
-                Staff ID
-                <input type="text" placeholder="Enter ID" required />
+                Hospital ID
+                <input
+                  type="text"
+                  placeholder="e.g. hospital123"
+                  value={hospitalId}
+                  onChange={(e) => setHospitalIdInput(e.target.value)}
+                  required
+                />
               </label>
 
               <label>
                 Password
-                <input type="password" placeholder="••••••••" required />
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
               </label>
+
+              {error && <p className="login-error">{error}</p>}
 
               <button type="submit" className="action-card">
                 Enter System

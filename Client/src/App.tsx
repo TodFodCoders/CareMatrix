@@ -14,7 +14,7 @@ function App() {
       <Route path="/heatmap" element={<HeatMapPage />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/inventory" element={<InventoryManagement />} />
-      <Route path="/predictions" element={<PredictionPage />} />
+      <Route path="/prediction" element={<PredictionPage />} />
     </Routes>
   );
 }

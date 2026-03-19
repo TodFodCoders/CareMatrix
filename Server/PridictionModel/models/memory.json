@@ -1,6 +1,11 @@
 {
+<<<<<<< HEAD
   "sessions": 5,
   "total_rows": 94178,
+=======
+  "sessions": 15,
+  "total_rows": 199316,
+>>>>>>> 68efb80926f6c6fef04c3c27b91a416277363e3d
   "date_range": {
     "first": "2023-01-01",
     "last": "2024-07-01"
@@ -15,6 +20,19 @@
     "e08b13ac1d59",
     "6bc62e7750bc",
     "6bc62e7750bc",
+<<<<<<< HEAD
+=======
+    "6bc62e7750bc",
+    "6bc62e7750bc",
+    "e08b13ac1d59",
+    "e08b13ac1d59",
+    "e08b13ac1d59",
+    "e08b13ac1d59",
+    "e08b13ac1d59",
+    "e08b13ac1d59",
+    "e08b13ac1d59",
+    "e08b13ac1d59",
+>>>>>>> 68efb80926f6c6fef04c3c27b91a416277363e3d
     "e08b13ac1d59",
     "e08b13ac1d59"
   ],
@@ -49,12 +67,17 @@
     },
     {
       "session": 3,
+<<<<<<< HEAD
       "date": "2026-03-19T08:28:04.301022",
+=======
+      "date": "2026-03-19T08:43:40.714204",
+>>>>>>> 68efb80926f6c6fef04c3c27b91a416277363e3d
       "rows_added": 43801,
       "total_rows": 89794,
       "best_model": "GBM",
       "best_mae": 0.0,
       "accuracy": 100.0,
+<<<<<<< HEAD
       "csv": "C:\\Project\\CareMatrix\\Server\\PridictionModel\\data\\hospital123.csv",
       "gpu": "NVIDIA GeForce RTX 3050 6GB Laptop GPU, 6144 MiB"
     },
@@ -79,6 +102,142 @@
       "accuracy": 97.7,
       "csv": "C:\\Project\\CareMatrix\\Server\\PridictionModel\\data\\hospital321.csv",
       "gpu": "NVIDIA GeForce RTX 3050 6GB Laptop GPU, 6144 MiB"
+=======
+      "csv": "./PridictionModel/data/hospital123.csv",
+      "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB"
+    },
+    {
+      "session": 4,
+      "date": "2026-03-19T08:45:07.951478",
+      "rows_added": 43801,
+      "total_rows": 133595,
+      "best_model": "GBM",
+      "best_mae": 0.0,
+      "accuracy": 100.0,
+      "csv": "./PridictionModel/data/hospital123.csv",
+      "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB"
+    },
+    {
+      "session": 5,
+      "date": "2026-03-19T08:47:27.293102",
+      "rows_added": 43801,
+      "total_rows": 177396,
+      "best_model": "GBM",
+      "best_mae": 0.0,
+      "accuracy": 100.0,
+      "csv": "./PridictionModel/data/hospital123.csv",
+      "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB"
+    },
+    {
+      "session": 6,
+      "date": "2026-03-19T08:47:32.094314",
+      "rows_added": 2192,
+      "total_rows": 179588,
+      "best_model": "DT",
+      "best_mae": 0.8,
+      "accuracy": 97.7,
+      "csv": "./PridictionModel/data/hospital321.csv",
+      "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB"
+    },
+    {
+      "session": 7,
+      "date": "2026-03-19T08:47:40.116878",
+      "rows_added": 2192,
+      "total_rows": 181780,
+      "best_model": "DT",
+      "best_mae": 0.8,
+      "accuracy": 97.7,
+      "csv": "./PridictionModel/data/hospital321.csv",
+      "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB"
+    },
+    {
+      "session": 8,
+      "date": "2026-03-19T08:47:45.335539",
+      "rows_added": 2192,
+      "total_rows": 183972,
+      "best_model": "DT",
+      "best_mae": 0.8,
+      "accuracy": 97.7,
+      "csv": "./PridictionModel/data/hospital321.csv",
+      "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB"
+    },
+    {
+      "session": 9,
+      "date": "2026-03-19T08:48:03.680115",
+      "rows_added": 2192,
+      "total_rows": 186164,
+      "best_model": "DT",
+      "best_mae": 0.8,
+      "accuracy": 97.7,
+      "csv": "./PridictionModel/data/hospital321.csv",
+      "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB"
+    },
+    {
+      "session": 10,
+      "date": "2026-03-19T08:48:13.859816",
+      "rows_added": 2192,
+      "total_rows": 188356,
+      "best_model": "DT",
+      "best_mae": 0.8,
+      "accuracy": 97.7,
+      "csv": "./PridictionModel/data/hospital321.csv",
+      "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB"
+    },
+    {
+      "session": 11,
+      "date": "2026-03-19T08:48:21.138678",
+      "rows_added": 2192,
+      "total_rows": 190548,
+      "best_model": "DT",
+      "best_mae": 0.8,
+      "accuracy": 97.7,
+      "csv": "./PridictionModel/data/hospital321.csv",
+      "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB"
+    },
+    {
+      "session": 12,
+      "date": "2026-03-19T08:48:30.198034",
+      "rows_added": 2192,
+      "total_rows": 192740,
+      "best_model": "DT",
+      "best_mae": 0.8,
+      "accuracy": 97.7,
+      "csv": "./PridictionModel/data/hospital321.csv",
+      "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB"
+    },
+    {
+      "session": 13,
+      "date": "2026-03-19T08:48:40.161984",
+      "rows_added": 2192,
+      "total_rows": 194932,
+      "best_model": "DT",
+      "best_mae": 0.8,
+      "accuracy": 97.7,
+      "csv": "./PridictionModel/data/hospital321.csv",
+      "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB"
+    },
+    {
+      "session": 14,
+      "date": "2026-03-19T08:48:51.408978",
+      "rows_added": 2192,
+      "total_rows": 197124,
+      "best_model": "DT",
+      "best_mae": 0.8,
+      "accuracy": 97.7,
+      "csv": "./PridictionModel/data/hospital321.csv",
+      "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB"
+    },
+    {
+      "session": 15,
+      "date": "2026-03-19T08:48:57.377501",
+      "rows_added": 2192,
+      "total_rows": 199316,
+      "best_model": "DT",
+      "best_mae": 0.8,
+      "accuracy": 97.7,
+      "csv": "./PridictionModel/data/hospital321.csv",
+      "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB"
+>>>>>>> 68efb80926f6c6fef04c3c27b91a416277363e3d
     }
   ],
   "capacity_defaults": {
