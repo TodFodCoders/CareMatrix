@@ -1,4 +1,4 @@
-const BASE = "http://127.0.0.1:8000";
+const BASE = "http://localhost:8000";
 
 export async function registerHospital(name: string, lat: number, lng: number) {
   const r = await fetch(`${BASE}/api/hospital/register`, {
@@ -138,4 +138,96 @@ export async function respondToResource(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ request_id, hospital_id, status }),
   });
+}
+
+export type PredictionResponse = {
+  prediction: {
+    date: string;
+    facility: string;
+    predicted: number;
+    low: number;
+    high: number;
+    confidence_pct: number;
+    model_used: string;
+    ml_blend_pct: number;
+    season_used: string;
+  };
+  bed_occupancy: {
+    total_beds: number;
+    current_occupied: number;
+    new_admissions: number;
+    projected_occupied: number;
+    beds_free_now: number;
+    beds_free_after: number;
+    current_bor_pct: number;
+    projected_bor_pct: number;
+    over_capacity: boolean;
+    status: string;
+    nhm_target_pct: number;
+  };
+  opd_load: {
+    patients_per_hour: number;
+    patients_per_hr_per_ctr: number;
+    patients_per_doctor: number;
+    counters_available: number;
+    counters_needed: number;
+    doctors_available: number;
+    doctors_needed: number;
+    counter_status: string;
+    doctor_status: string;
+    counter_util_pct: number;
+    nhm_ctr_norm_min: number;
+    nhm_ctr_norm_max: number;
+  };
+  emergency_load: {
+    ed_beds: number;
+    ed_occupied_now: number;
+    opd_transfers: number;
+    direct_walkins: number;
+    new_ed_patients: number;
+    projected_occupied: number;
+    utilisation_pct: number;
+    triage_immediate: number;
+    triage_urgent: number;
+    triage_non_urgent: number;
+    triage_observation: number;
+    status: string;
+  };
+  waiting_times: {
+    transport: number;
+    registration: number;
+    triage: number;
+    consultation: number;
+    pharmacy: number;
+    billing: number;
+    total: number;
+    bed_delay_mult: number;
+    effective_doctors: number;
+  };
+  alerts: { level: string; code: string; message: string }[];
+  inputs_used: {
+    cap: {
+      doctors: number;
+      counters: number;
+      totalBeds: number;
+      bedsOccupied: number;
+      opdHrs: number;
+      edBeds: number;
+      edOccupied: number;
+      admitRate: number;
+      edRate: number;
+      walkInPct: number;
+      phonePct: number;
+    };
+  };
+};
+
+export async function getPrediction(
+  date: string,
+  facility = "all",
+): Promise<PredictionResponse> {
+  const r = await fetch(
+    `${BASE}/api/predict?date=${date}&facility=${facility}`,
+  );
+  return r.json();
 }

@@ -208,7 +208,12 @@ function Dashboard() {
             >
               Inventory Management
             </button>
-            <button className="mini-action">Emergency Alert</button>
+            <button
+              className="mini-action"
+              onClick={() => navigate("/predictions")}
+            >
+              Predictions
+            </button>
             <button
               className="mini-action"
               onClick={() => navigate("/heatmap")}
